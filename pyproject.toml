@@ -1,0 +1,49 @@
+[project]
+name = "token-status-list"
+version = "0.1.0"
+description = "Implementation of IETF Token Status List"
+authors = [
+    {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
+]
+dependencies = []
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pre-commit>=3.7.1",
+    "pytest>=8.2.2",
+    "ruff>=0.5.0",
+    "pytest-cov>=5.0.0",
+]
+
+[tool.ruff]
+line-length = 90
+extend-exclude = ["example*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "C", "D", "TID"]
+ignore = [
+    # Google Python Doc Style
+    "D203", "D204", "D213", "D215", "D400", "D401", "D404", "D406", "D407",
+    "D408", "D409", "D413",
+    "D202", # Allow blank line after docstring
+]
+per-file-ignores = {"**/{tests}/*" = ["F841", "D", "E501"]}
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "@abstract"]
+precision = 2
+show_missing = true
+
+[tool.coverage.run]
+branch = true
