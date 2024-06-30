@@ -7,7 +7,9 @@ https://datatracker.ietf.org/doc/html/draft-ietf-oauth-status-list-02
 """
 
 import base64
-from typing import Literal, Union
+import json
+from time import time
+from typing import Literal, Optional, Union
 import zlib
 
 
@@ -23,6 +25,11 @@ def b64url_decode(value: bytes) -> bytes:
 def b64url_encode(value: bytes) -> bytes:
     """Return the decoded base64 url encoded value, without padding."""
     return base64.urlsafe_b64encode(value).rstrip(b"=")
+
+
+def dict_to_b64(value: dict) -> bytes:
+    """Transform a dictionary into base64url encoded json dump of dictionary."""
+    return b64url_encode(json.dumps(value, separators=(",", ":")).encode())
 
 
 VALID = 0x00
@@ -77,6 +84,10 @@ class TokenStatusList:
     @classmethod
     def with_at_least(cls, bits: Bits, size: int):
         """Create an empty list large enough to accommodate at least the given size."""
+        # Determine minimum number of bytes to fit size
+        # This is essentially a fast ceil(n / 2^x)
+        length = (size + cls.PER_BYTE[bits] - 1) >> cls.SHIFT_BY[bits]
+        return cls(bits, bytearray(length))
 
     def __getitem__(self, index: int):
         """Retrieve the status of an index."""
@@ -151,3 +162,80 @@ class TokenStatusList:
 
         parsed_lst = zlib.decompress(b64url_decode(lst.encode()))
         return cls(bits, parsed_lst)
+
+    def sign_payload(
+        self,
+        *,
+        alg: str,
+        kid: str,
+        iss: str,
+        sub: str,
+        iat: Optional[int] = None,
+        exp: Optional[int] = None,
+        ttl: Optional[int] = None,
+    ) -> bytes:
+        """Create a Status List Token payload for signing.
+
+        Signing is NOT performed by this function; only the payload to the signature is
+        prepared. The caller is responsible for producing a signature.
+
+        Args:
+            alg: REQUIRED. The algorithm to be used to sign the payload.
+
+            kid: REQUIRED. The kid used to sign the payload.
+
+            iss: REQUIRED when also present in the Referenced Token. The iss (issuer)
+                claim MUST specify a unique string identifier for the entity that issued
+                the Status List Token. In the absence of an application profile specifying
+                otherwise, compliant applications MUST compare issuer values using the
+                Simple String Comparison method defined in Section 6.2.1 of [RFC3986].
+                The value MUST be equal to that of the iss claim contained within the
+                Referenced Token.
+
+            sub: REQUIRED. The sub (subject) claim MUST specify a unique string identifier
+                for the Status List Token. The value MUST be equal to that of the uri
+                claim contained in the status_list claim of the Referenced Token.
+
+            iat: REQUIRED. The iat (issued at) claim MUST specify the time at which the
+                Status List Token was issued.
+
+            exp: OPTIONAL. The exp (expiration time) claim, if present, MUST specify the
+                time at which the Status List Token is considered expired by its issuer.
+
+            ttl: OPTIONAL. The ttl (time to live) claim, if present, MUST specify the
+                maximum amount of time, in seconds, that the Status List Token can be
+                cached by a consumer before a fresh copy SHOULD be retrieved. The value
+                of the claim MUST be a positive number.
+        """
+        headers = {
+            "typ": "statuslist+jwt",
+            "alg": alg,
+            "kid": kid,
+        }
+        payload = {
+            "iss": iss,
+            "sub": sub,
+            "iat": iat or int(time()),
+            "status_list": self.serialize(),
+        }
+        if exp is not None:
+            payload["exp"] = exp
+
+        if ttl is not None:
+            payload["ttl"] = ttl
+
+        enc_headers = dict_to_b64(headers).decode()
+        enc_payload = dict_to_b64(payload).decode()
+        return f"{enc_headers}.{enc_payload}".encode()
+
+    def signed_token(self, signed_payload: bytes, signature: bytes) -> str:
+        """Finish creating a signed token.
+
+        Args:
+            signed_payload: The value returned from `sign_payload`.
+            signature: The signature over the signed_payload in bytes.
+
+        Returns:
+            Finished Status List Token.
+        """
+        return f"{signed_payload.decode()}.{b64url_encode(signature)}"

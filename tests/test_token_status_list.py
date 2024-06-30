@@ -1,6 +1,8 @@
 """Test TokenStatusList."""
 
+import json
 import pytest
+from secrets import randbelow
 
 from token_status_list import INVALID, SUSPENDED, TokenStatusList, VALID, b64url_decode
 
@@ -151,31 +153,44 @@ def test_performance(bits: int):
     print("Bits:", bits)
 
     # Create a large TokenStatusList
-    size = 1000000  # Number of tokens
-    token_list = TokenStatusList.of_size(bits, size)
+    size = 1000000  # Number of indices
+    status_list = TokenStatusList.of_size(bits, size)
+
+    # Generate random statuses
+    statuses = []
+    while len(statuses) < size:
+        run = randbelow(10)
+        status = randbelow(2)
+        statuses.extend([status] * run)
+
+    diff = len(statuses) - size
+    if diff > 1:
+        for _ in range(diff + 1):
+            statuses.pop()
 
     # Test setting values
     start_time = time.time()
-    for i in range(size):
-        token_list[i] = VALID if i % 2 == 0 else INVALID
+    for i, status in enumerate(statuses):
+        status_list[i] = status
     end_time = time.time()
-    print(f"Time to set {size} tokens: {end_time - start_time} seconds")
+    print(f"Time to set {size} indices: {end_time - start_time:.3f} seconds")
 
     # Test getting values
     start_time = time.time()
     for i in range(size):
-        status = token_list[i]
+        status = status_list[i]
     end_time = time.time()
-    print(f"Time to get {size} tokens: {end_time - start_time} seconds")
+    print(f"Time to get {size} indices: {end_time - start_time:.3f} seconds")
 
     # Test compression
     start_time = time.time()
-    compressed_data = token_list.compressed()
+    compressed_data = status_list.compressed()
     end_time = time.time()
-    print(f"Time to compress: {end_time - start_time} seconds")
-    print(f"Original length: {len(token_list.lst)} bytes")
+    print(f"Time to compress: {end_time - start_time:.3f} seconds")
+    print(f"Original length: {len(status_list.lst)} bytes")
     print(f"Compressed length: {len(compressed_data)} bytes")
-    print(f"Compression ratio: {len(compressed_data) / len(token_list.lst) * 100:.3f}%")
+    print(f"Compression ratio: {len(compressed_data) / len(status_list.lst) * 100:.3f}%")
+    # print(f"List in hex: {status_list.lst.hex()}")
 
 
 def test_serde():
@@ -200,3 +215,65 @@ def test_invalid_to_valid():
     assert status[7] == INVALID
     with pytest.raises(ValueError):
         status[7] = 0x00
+
+
+def test_of_size():
+    with pytest.raises(ValueError):
+        status = TokenStatusList.of_size(1, 3)
+    with pytest.raises(ValueError):
+        status = TokenStatusList.of_size(2, 21)
+    with pytest.raises(ValueError):
+        status = TokenStatusList.of_size(4, 31)
+
+    # Lists with bits 8 can have arbitrary size since there's no byte
+    # boundaries to worry about
+    status = TokenStatusList.of_size(8, 31)
+    assert len(status.lst) == 31
+
+    status = TokenStatusList.of_size(1, 8)
+    assert len(status.lst) == 1
+    status = TokenStatusList.of_size(1, 16)
+    assert len(status.lst) == 2
+    status = TokenStatusList.of_size(1, 24)
+    assert len(status.lst) == 3
+    status = TokenStatusList.of_size(8, 24)
+    assert len(status.lst) == 24
+
+
+def test_with_at_least():
+    status = TokenStatusList.with_at_least(1, 3)
+    assert len(status.lst) == 1
+    status = TokenStatusList.with_at_least(2, 21)
+    assert len(status.lst) == 6
+    status = TokenStatusList.with_at_least(4, 31)
+    assert len(status.lst) == 16
+
+    status = TokenStatusList.with_at_least(1, 8)
+    assert len(status.lst) == 1
+    status = TokenStatusList.with_at_least(2, 24)
+    assert len(status.lst) == 6
+    status = TokenStatusList.with_at_least(4, 32)
+    assert len(status.lst) == 16
+
+
+def test_sign_payload():
+    status = TokenStatusList(1, b"\xb9\xa3")
+    payload = status.sign_payload(
+        alg="ES256",
+        kid="12",
+        iss="https://example.com",
+        sub="https://example.com/statuslists/1",
+        iat=1686920170,
+        exp=2291720170,
+    )
+    headers, payload = payload.split(b".")
+    headers = json.loads(b64url_decode(headers))
+    payload = json.loads(b64url_decode(payload))
+    assert headers == {"alg": "ES256", "kid": "12", "typ": "statuslist+jwt"}
+    assert payload == {
+        "exp": 2291720170,
+        "iat": 1686920170,
+        "iss": "https://example.com",
+        "status_list": {"bits": 1, "lst": "eNrbuRgAAhcBXQ"},
+        "sub": "https://example.com/statuslists/1",
+    }
