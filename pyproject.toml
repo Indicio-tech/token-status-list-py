@@ -40,6 +40,10 @@ ignore = [
 ]
 per-file-ignores = {"**/{tests}/*" = ["F841", "D", "E501"]}
 
+[tool.pytest.ini_options]
+addopts="-m 'not performance'"
+markers = "performance: performance tests"
+
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "@abstract"]
 precision = 2
