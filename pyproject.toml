@@ -6,9 +6,14 @@ authors = [
     {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
 ]
 dependencies = []
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "Apache-2.0"}
+
+[project.optional-dependencies]
+cbor = [
+    "cbor2>=5.6.4"
+]
 
 [build-system]
 requires = ["pdm-backend"]
