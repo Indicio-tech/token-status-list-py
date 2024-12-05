@@ -1,6 +1,6 @@
 [project]
 name = "token-status-list"
-version = "0.1.0"
+version = "0.1.0a2.dev0"
 description = "Implementation of IETF Token Status List"
 authors = [
     {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
