@@ -2,20 +2,21 @@
 
 import json
 import pytest
-from token_status_list import IssuerStatusList, BitArray, b64url_decode
+from token_status_list import BitArray, b64url_decode
+from issuer import TokenStatusListIssuer
 
 
 @pytest.fixture
 def status():
     lst = BitArray(1, b"\xb9\xa3")
-    status = IssuerStatusList.new(1, 16)
+    status = TokenStatusListIssuer.new(1, 16)
     status.status_list = lst
     yield status
 
 
-def test_serde(status: IssuerStatusList):
+def test_serde(status: TokenStatusListIssuer):
     expected = status
-    actual = IssuerStatusList.load(expected.dump())
+    actual = TokenStatusListIssuer.load(expected.dump())
     assert len(expected.status_list.lst) == 2
     assert len(actual.status_list.lst) == 2
     assert expected.status_list.lst == actual.status_list.lst
@@ -23,7 +24,7 @@ def test_serde(status: IssuerStatusList):
     assert expected.status_list.size == actual.status_list.size
 
 
-def test_sign_jwt_payload(status: IssuerStatusList):
+def test_sign_jwt_payload(status: TokenStatusListIssuer):
     payload = status.sign_jwt_payload(
         alg="ES256",
         kid="12",
@@ -45,7 +46,7 @@ def test_sign_jwt_payload(status: IssuerStatusList):
     }
 
 
-def test_sign_cwt_payload(status: IssuerStatusList):
+def test_sign_cwt_payload(status: TokenStatusListIssuer):
     token = status.sign_cwt(
         lambda payload: b"10",
         kid=b"12",
