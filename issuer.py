@@ -34,13 +34,16 @@ IAT = 6
 CTI = 7
 
 # Status List Claims
-STATUS_LIST = 65534
+STATUS_LIST = 65533
+TTL = 65534
+
 KNOWN_ALGS_TO_CWT_ALG = {
     "ES256": -7,
     "ES384": -35,
     "ES512": -36,
     "EdDSA": -8,
 }
+
 CWTKnownAlgs = Literal["ES256", "ES384", "ES512", "EdDSA"]
 
 class TokenSigner(Protocol):
@@ -294,6 +297,7 @@ class TokenStatusListIssuer(Generic[N]):
         sub: str,
         iat: Optional[int] = None,
         exp: Optional[int] = None,
+        ttl: Optional[int] = None,
         **additional_claims: Any,
     ) -> Tuple[bytes, bytes]:
         """Prepare a CWT Format payload of the status list for signing.
@@ -344,6 +348,7 @@ class TokenStatusListIssuer(Generic[N]):
             ISS: iss,
             IAT: iat or int(time()),
             **({EXP: exp} if exp else {}),
+            **({TTL: ttl} if ttl else {}),
             STATUS_LIST: cbor2.dumps(
                 {"bits": self.status_list.bits, "lst": self.status_list.compressed()}
             ),
@@ -380,6 +385,7 @@ class TokenStatusListIssuer(Generic[N]):
         sub: str,
         iat: Optional[int] = None,
         exp: Optional[int] = None,
+        ttl: Optional[int] = None,
         **additional_claims: Any,
     ) -> bytes:
         """Sign status list to produce a CWT token.
@@ -415,7 +421,7 @@ class TokenStatusListIssuer(Generic[N]):
             Signed JWT of Status List.
         """
         headers, payload = self.sign_cwt_payload(
-            alg=alg, iss=iss, sub=sub, iat=iat, exp=exp, **additional_claims
+            alg=alg, iss=iss, sub=sub, iat=iat, exp=exp, ttl=ttl, **additional_claims
         )
         signature = signer(headers + payload)
         token = self.signed_cwt_token(kid, headers, payload, signature)
