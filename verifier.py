@@ -16,9 +16,6 @@ from typing import (
     Union,
     cast,
 )
-import zlib
-
-import time
 
 import requests as r
 
@@ -37,26 +34,28 @@ class SignatureError(Exception):
 class TokenStatusListVerifier():
     def __init__(
         self,
-        issuer_addr: str,
     ):
-        self.issuer_addr = issuer_addr
+        ...
 
-    def establish_connection(self, status_list_format: Literal["jwt", "cwt"]) -> bytes:
+    @classmethod
+    def establish_connection(cls, issuer_addr: str, status_list_format: Literal["jwt", "cwt"]) -> bytes:
         """ Establish connection. Returns base64 encoded response. """
-        response = r.get(self.issuer_addr, headers={"Accept": f"application/statuslist+{status_list_format}"})
+        response = r.get(issuer_addr, headers={"Accept": f"application/statuslist+{status_list_format}"})
         assert 200 <= response.status_code < 300, f"Unable to establish connection."
         return response.content
 
-    def jwt_verify(self, sl_response: bytes, verifier: TokenVerifier) -> Tuple[dict, dict]:
+    @classmethod
+    def jwt_verify(cls, sl_response: bytes, verifier: TokenVerifier) -> Tuple[dict, dict]:
         """ 
         Takes a payload and a verifier, and ensures that the payload matches the required format.
         Will return the headers and payload if valid, and raise an exception if not.
+        Caller is expected to catch exceptions for correct error-handling.
         """
         # JWT checks are done here implicitly
         headers_bytes, payload_bytes, signature = sl_response.split(b".")
         
         # Verify signature
-        verified = verifier(f"{headers_bytes.decode()}.{payload_bytes.decode()}".encode(), signature)
+        verified = verifier(f"{headers_bytes.decode()}.{payload_bytes.decode()}".encode(), b64url_decode(signature))
         if not verified:
             raise SignatureError("Invalid signature on payload.")
 
@@ -74,14 +73,23 @@ class TokenStatusListVerifier():
         
         if headers["typ"] != "statuslist+jwt":
             raise TypeError(f"Incorrect format: expected JWT but was {headers["type"]}")
+        
+        # Check that token is still valid.
+        if "exp" in payload.keys() and payload["exp"] < int(time()):
+            raise ValueError(f"Token is expired: exp = {payload["exp"]}.")
+
+        if "tll" in payload.keys() and payload["iat"] + payload["ttl"] < int(time()):
+            raise ValueError(f"Token is expired: ttl = {payload["ttl"]}.")
 
         return headers, payload
 
-    def jwt_get_status(self, payload: dict, index: int) -> int:
+    @classmethod
+    def jwt_get_status(cls, payload: dict, index: int) -> int:
         """
         Returns the status of an object from the status_list in payload. 
         Requies that the payload has already been checked using jwt_verify.
         """
 
         status_list = BitArray.load(payload["status_list"])
+    
         return status_list[index]
