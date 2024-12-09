@@ -81,7 +81,6 @@ def test_verify_jwt_es256(status: TokenStatusListIssuer):
     )
 
     # Check that token is correctly verified using ES256
-    print(payload)
     verifier = TokenStatusListVerifier()
     header, payload = verifier.jwt_verify(payload.encode(), es256_verifier.verify)
 
