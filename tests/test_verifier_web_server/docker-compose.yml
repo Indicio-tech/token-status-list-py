@@ -1,0 +1,8 @@
+services:
+  issuer:
+    build: ./issuer
+    ports:
+      - "3001:80"
+
+  verifier:
+    build: ./verifier
