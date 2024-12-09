@@ -221,7 +221,7 @@ class TokenStatusListIssuer(Generic[N]):
         Returns:
             Finished Status List Token.
         """
-        return f"{signed_payload.decode()}.{b64url_encode(signature)}"
+        return f"{signed_payload.decode()}.{b64url_encode(signature).decode()}"
 
     def sign_jwt(
         self,

@@ -5,7 +5,7 @@ description = "Implementation of IETF Token Status List"
 authors = [
     {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
 ]
-dependencies = []
+dependencies = ["google-auth>=2.36.0", "requests>=2.32.3"]
 requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "Apache-2.0"}
