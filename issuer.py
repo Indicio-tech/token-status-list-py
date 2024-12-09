@@ -335,7 +335,7 @@ class TokenStatusListIssuer(Generic[N]):
             raise ImportError("cbor extra required to use this function") from err
 
         cwt_alg = KNOWN_ALGS_TO_CWT_ALG.get(alg)
-        if not alg:
+        if not cwt_alg:
             raise ValueError(f"Unknown alg {alg}")
 
         protected = {ALG: cwt_alg, TYP: "statuslist+cwt"}
