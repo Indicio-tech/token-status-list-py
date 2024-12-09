@@ -32,7 +32,7 @@ class TokenVerifier(Protocol):
         ...
 
 class SignatureError(Exception):
-    """ Raised when """
+    """ Raised when signature is invalid. """
 
 class TokenStatusListVerifier():
     def __init__(
@@ -72,7 +72,7 @@ class TokenStatusListVerifier():
         _ = payload["sub"]
         _ = payload["iat"]
         
-        if headers["type"] != "statuslist+jwt":
+        if headers["typ"] != "statuslist+jwt":
             raise TypeError(f"Incorrect format: expected JWT but was {headers["type"]}")
 
         return headers, payload
