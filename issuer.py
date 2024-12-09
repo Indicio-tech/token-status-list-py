@@ -36,6 +36,7 @@ CTI = 7
 # Status List Claims
 STATUS_LIST = 65533
 TTL = 65534
+STATUS = 65535
 
 KNOWN_ALGS_TO_CWT_ALG = {
     "ES256": -7,

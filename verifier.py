@@ -17,7 +17,7 @@ from typing import (
 import requests as r
 
 from token_status_list import *
-from issuer import ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL
+from issuer import ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, STATUS
 
 class TokenVerifier(Protocol):
     """Protocol defining the verifying callable."""
@@ -29,53 +29,78 @@ class TokenVerifier(Protocol):
 class SignatureError(Exception):
     """ Raised when signature is invalid. """
 
-CWT_ALG_TO_KNOWN_ALGS = {
-    -7: "ES256",
-    -35: "ES384",
-    -36: "ES512",
-    -8: "EdDSA",
-}
-
-# COSE Headers
-COSE_HEADERS = {
-    ALG: "alg",
-    KID: "kid",
-    TYP: "typ",  # TBD
-
-    # CWT Claims
-    ISS: "iss",
-    SUB: "sub",
-    AUD: "aud",
-    EXP: "exp",
-    NBF: "nbf",
-    IAT: "iat",
-    CTI: "cti",
-
-    STATUS_LIST: "status_list",
-    65534: "ttl",
-}
-
 class TokenStatusListVerifier():
     def __init__(
         self,
     ):
-        ...
+        self.issuer_uri: Optional[str] = None
+        self.encoding: Optional[Literal["CWT", "JWT"]] = None
 
-    @classmethod
-    def establish_connection(cls, issuer_addr: str, status_list_format: Literal["jwt", "cwt"]) -> bytes:
+        self.headers: Optional[dict] = None
+        self.protected_headers: Optional[dict] = None
+        self.unprotected_headers: Optional[dict] = None
+
+        self.payload: Optional[dict] = None
+
+        self.bit_array: Optional[BitArray] = None
+        self.idx: Optional[int] = None
+
+    def jwt_parse_referenced_token(self, token: bytes):
+        _, payload = token.split(b".")
+        payload = json.loads(b64url_decode(payload))
+
+        status_list = payload["status"]["status_list"]
+
+        self.idx = status_list["idx"]
+        self.issuer_uri = status_list["uri"]
+
+    def cwt_parse_referenced_token(self, token: bytes):
+        try:
+            import cbor2
+        except ImportError as err:
+            raise ImportError("cbor extra required to use this function") from err
+        
+        # Extract data
+        obj = cbor2.loads(token)
+        assert obj.tag == 18
+
+        # TODO: Not sure if this is correct. Section 6.3 is unspecific
+        _, _, encoded_payload, _ = obj.value
+        payload: dict = cbor2.loads(encoded_payload)
+        status = cbor2.loads(payload[STATUS])
+        status_list = cbor2.loads(status[STATUS_LIST])
+
+        self.idx = status_list[0]
+        self.issuer_uri = status_list[3]
+
+    # TODO?: See Section 6.3: IssuerAuth as specified in ISO mDL (also referred to as signed MSO)
+
+    def establish_connection(
+        self, 
+        status_list_format: Literal["CWT", "JWT"],
+        issuer_uri: Optional[str] = None,
+    ) -> bytes:
         """ Establish connection. Returns base64 encoded response. """
-        response = r.get(issuer_addr, headers={"Accept": f"application/statuslist+{status_list_format}"})
+        assert issuer_uri is not None or self.issuer_uri is not None,\
+            "Please provide a URI, either directly or through parse_referenced_token"
+
+        response = r.get(
+            issuer_uri if issuer_uri is not None else self.issuer_uri, 
+            headers={"Accept": f"application/statuslist+{status_list_format.lower()}"}
+        )
+        
+        # TODO?: Follow links in the 300 range
         assert 200 <= response.status_code < 300, f"Unable to establish connection."
+        self.issuer_uri = issuer_uri
         return response.content
 
-    @classmethod
-    def jwt_verify(cls, sl_response: bytes, verifier: TokenVerifier) -> Tuple[dict, dict]:
+    def jwt_verify(self, sl_response: bytes, verifier: TokenVerifier):
         """ 
         Takes a status-list response and a verifier, and ensures that the response matches the 
         required format, verifying the signature using verifier.
 
-        Will return the headers and payload if the format is valid and the signature is correct, and 
-        raise an exception if not.
+        Will assign the headers and payload fields in the class if the format is valid and the 
+        signature is correct, and raise an exception if not.
 
         Args:
             sl_response: REQUIRED. A base64-encoded status_list response, acquired (eg.) from 
@@ -83,10 +108,6 @@ class TokenStatusListVerifier():
 
             verifier: REQUIRED. A callable that verifies the signature of a payload, equivalent to 
             signer in sign_jwt() in issuer.py.
-
-        Returns:
-            A tuple containing the header and payload of the ST-JWT in Python dictionary form.
-    
         """
         # Check that message is in valid JWT format 
         headers_bytes, payload_bytes, signature = sl_response.split(b".")
@@ -116,19 +137,21 @@ class TokenStatusListVerifier():
         if "exp" in payload.keys() and payload["exp"] < int(time()):
             raise ValueError(f"Token is expired: exp = {payload["exp"]}.")
 
-        if "tll" in payload.keys() and payload["iat"] + payload["ttl"] < int(time()):
-            raise ValueError(f"Token is expired: ttl = {payload["ttl"]}.")
+        # Check issuer uri, if applicable
+        if self.issuer_uri is not None and self.issuer_uri != payload["sub"]:
+            raise ValueError(f"Expected URI {self.issuer_uri} but instead got {payload["sub"]}")
 
-        return headers, payload
+        self.encoding = "JWT"
+        self.headers = headers
+        self.payload = payload
 
-    @classmethod
-    def cwt_verify(cls, token: bytes, verifier: TokenVerifier) -> Tuple[dict, dict, dict]:
+    def cwt_verify(self, token: bytes, verifier: TokenVerifier):
         """ 
         Takes a status-list response and a verifier, and ensures that the response matches the 
         required format, verifying the signature using verifier.
 
-        Will return the headers and payload if the format is valid and the signature is correct, and 
-        raise an exception if not.
+        Will assign the (un)protected headers and payload fields in the class if the format is valid
+        and the signature is correct, and raise an exception if not.
 
         Args:
             sl_response: REQUIRED. A base64-encoded status_list response, acquired (eg.) from 
@@ -177,13 +200,16 @@ class TokenStatusListVerifier():
         if EXP in payload.keys() and payload[EXP] < int(time()):
             raise ValueError(f"Token is expired: exp = {payload[EXP]}.")
         
-        if TTL in payload.keys() and payload[IAT] + int(payload[TTL]) < int(time()):
-            raise ValueError(f"Token is expired: ttl = {payload[TTL]}.")
+        # Check issuer uri, if applicable
+        if self.issuer_uri is not None and self.issuer_uri != payload[SUB]:
+            raise ValueError(f"Expected URI {self.issuer_uri} but instead got {payload[SUB]}")
+        
+        self.encoding = "CWT"
+        self.protected_headers = protected_headers
+        self.unprotected_headers = unprotected_headers
+        self.payload = payload
 
-        return protected_headers, unprotected_headers, payload
-
-    @classmethod
-    def get_status(cls, status_list: bytes, index: int) -> int:
+    def get_status(self, idx: Optional[int]) -> int:
         """
         Returns the status of an object from the status_list in payload. 
         Requies that the payload has already been checked using jwt_verify or cwt_verify.
@@ -197,6 +223,14 @@ class TokenStatusListVerifier():
             The status of the requested token.
         """
 
-        bit_array = BitArray.load(status_list)
-    
-        return bit_array[index]
+        assert self.encoding is not None and self.payload is not None,\
+            "Before accessing the status, please verify using jwt_verify or cwt_verify"
+
+        assert self.idx is not None or idx is not None,\
+            "Please provide an index, either directly or through parse_referenced_token"
+
+        if self.bit_array is None:    
+            status_list = self.payload["status_list"] if self.encoding == "JWT" else self.payload[STATUS_LIST]
+            self.bit_array = BitArray.load(status_list)
+        
+        return self.bit_array[idx if idx is not None else self.idx]
