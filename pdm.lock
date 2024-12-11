@@ -3,7 +3,7 @@
 
 [metadata]
 groups = ["default", "cbor", "dev"]
-strategy = ["cross_platform", "inherit_metadata"]
+strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
 content_hash = "sha256:64ede09b93bd0d058f2b1b55c6d25cd8631226caf81176c611e1d00e13ca574f"
 

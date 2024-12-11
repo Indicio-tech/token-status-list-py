@@ -1,6 +1,6 @@
 [project]
 name = "token-status-list"
-version = "0.1.0a2.dev0"
+version = "0.1.0a2.dev1"
 description = "Implementation of IETF Token Status List"
 authors = [
     {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
@@ -30,6 +30,9 @@ dev = [
     "ruff>=0.5.0",
     "pytest-cov>=5.0.0",
 ]
+
+[tool.pdm.build]
+includes = ["token_status_list.py"]
 
 [tool.ruff]
 line-length = 90
