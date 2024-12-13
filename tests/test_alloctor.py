@@ -5,7 +5,7 @@ from random import sample
 from itertools import product
 
 from tests import MemoryTracer, Timer
-from token_status_list import BitArray, RandomIndexAllocator
+from src.token_status_list import BitArray, RandomIndexAllocator
 
 SIZE = 10000
 

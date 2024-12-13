@@ -7,9 +7,9 @@ from google.auth.crypt.es256 import ES256Signer, ES256Verifier
 from cryptography.hazmat.primitives.asymmetric import ec
 
 
-from token_status_list import BitArray
-from issuer import TokenStatusListIssuer, ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
-from verifier import TokenStatusListVerifier
+from src.token_status_list import BitArray
+from src.issuer import TokenStatusListIssuer, ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
+from src.verifier import TokenStatusListVerifier
 
 from typing import Tuple
 

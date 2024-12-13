@@ -16,8 +16,8 @@ from typing import (
 
 import requests as r
 
-from token_status_list import *
-from issuer import ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, STATUS
+from src.token_status_list import *
+from src.issuer import ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, STATUS
 
 class TokenVerifier(Protocol):
     """Protocol defining the verifying callable."""

@@ -1,4 +1,4 @@
-from issuer import TokenStatusListIssuer
+from src.issuer import TokenStatusListIssuer
 
 MY_HTML = """\
 <!DOCTYPE html>
