@@ -1,0 +1,8 @@
+services:
+  issuer:
+    build:
+      context: .
+      dockerfile: tests/test_web_server/issuer/Dockerfile
+    ports:
+      - "3001:80"
+    restart: unless-stopped
