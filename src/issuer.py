@@ -17,7 +17,7 @@ from typing import (
     cast,
 )
 
-from token_status_list import *
+from src.token_status_list import *
 
 # COSE Headers
 ALG = 1
