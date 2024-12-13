@@ -3,6 +3,7 @@ services:
     build: ./issuer
     ports:
       - "3001:80"
+    restart: unless-stopped
 
   verifier:
     build: ./verifier
