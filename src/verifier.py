@@ -32,16 +32,27 @@ class SignatureError(Exception):
 class TokenStatusListVerifier():
     def __init__(
         self,
+        encoding: Literal["CWT", "JWT"] | None = None,
+        issuer_uri: Optional[str] = None,
+
+        headers: Optional[dict] = None,
+        protected_headers: Optional[dict] = None,
+        unprotected_headers: Optional[dict] = None,
+
+        payload: Optional[dict] = None,
+
+        bit_array: Optional[BitArray] = None,
     ):
-        self.issuer_uri: Optional[str] = None
+        self.encoding = encoding
+        self.issuer_uri = issuer_uri
 
-        self.headers: Optional[dict] = None
-        self.protected_headers: Optional[dict] = None
-        self.unprotected_headers: Optional[dict] = None
+        self.headers = headers
+        self.protected_headers = protected_headers
+        self.unprotected_headers = unprotected_headers
 
-        self.payload: Optional[dict] = None
+        self.payload = payload
 
-        self.bit_array: Optional[BitArray] = None
+        self.bit_array = bit_array
 
     def establish_connection(
         self, 
@@ -57,6 +68,7 @@ class TokenStatusListVerifier():
         # TODO?: Follow links in the 300 range
         assert 200 <= response.status_code < 300, f"Unable to establish connection."
         self.issuer_uri = issuer_uri
+        self.encoding = status_list_format
         return response.content
 
     def jwt_verify(self, sl_response: bytes, verifier: TokenVerifier):
@@ -74,6 +86,11 @@ class TokenStatusListVerifier():
             verifier: REQUIRED. A callable that verifies the signature of a payload, equivalent to 
             signer in sign_jwt() in issuer.py.
         """
+        # Ensure that the format is correct
+        assert(self.encoding != "CWT", "Please use TokenStatusListVerifier.cwt_verifier() for tokens in cwt format.")
+        if self.encoding is None:
+            self.encoding = "JWT"
+        
         # Check that message is in valid JWT format 
         headers_bytes, payload_bytes, signature = sl_response.split(b".")
         assert headers_bytes and payload_bytes and signature
@@ -106,7 +123,6 @@ class TokenStatusListVerifier():
         if self.issuer_uri is not None and self.issuer_uri != payload["sub"]:
             raise ValueError(f"Expected URI {self.issuer_uri} but instead got {payload["sub"]}")
 
-        self.encoding = "JWT"
         self.headers = headers
         self.payload = payload
 
@@ -134,6 +150,11 @@ class TokenStatusListVerifier():
             import cbor2
         except ImportError as err:
             raise ImportError("cbor extra required to use this function") from err
+        
+        # Ensure that the format is correct
+        assert(self.encoding != "JWT", "Please use TokenStatusListVerifier.jwt_verifier() for tokens in jwt format.")
+        if self.encoding is None:
+            self.encoding = "CWT" 
         
         # Extract data
         obj = cbor2.loads(token)
@@ -169,7 +190,6 @@ class TokenStatusListVerifier():
         if self.issuer_uri is not None and self.issuer_uri != payload[SUB]:
             raise ValueError(f"Expected URI {self.issuer_uri} but instead got {payload[SUB]}")
         
-        self.encoding = "CWT"
         self.protected_headers = protected_headers
         self.unprotected_headers = unprotected_headers
         self.payload = payload
@@ -178,6 +198,7 @@ class TokenStatusListVerifier():
         """
         Returns the status of an object from the status_list in payload. 
         Requies that the payload has already been checked using jwt_verify or cwt_verify.
+        Caches the status list as a BitArray type for ease of future reference.
 
         Args:
             payload: REQUIRED. A verified payload returned from jwt_verify or cwt_verify.
@@ -196,3 +217,61 @@ class TokenStatusListVerifier():
             self.bit_array = BitArray.load(status_list)
         
         return self.bit_array[idx]
+
+
+    def serialize_verifier(self) -> dict:
+        """
+        Utility function: serialize a TokenStatusListVerifier for storing.
+
+        Returns:
+            A dictionary with headers and payload, as well as relevant metadata.
+        """
+        return_dict = {}
+        
+        return_dict["encoding"] = self.encoding
+        return_dict["issuer_uri"] = self.issuer_uri
+        return_dict["payload"] = self.payload
+
+        if self.encoding == "JWT":
+            return_dict["headers"] = self.headers
+        elif self.encoding == "CWT":
+            return_dict["protected_headers"] = self.protected_headers
+            return_dict["unprotected_headers"] = self.unprotected_headers
+        else:
+            raise ValueError(f"Invalid encoding: was {self.encoding} but needs to be JWT or CWT")
+
+        return return_dict
+    
+
+    @classmethod
+    def deserialize_verifier(cls, seralized_verifier: dict) -> "TokenStatusListVerifier":
+        """
+        Utility function: deserializes a seralized TokenStatusListVerifier, which must be in the
+        same format as the return type of seralize_verifier. Returns a TokenStatusListVerifier type
+        with fields populated and the status list stored as a BitArray.
+
+        Args:
+            serialized_verifier: REQUIRED. Serialized verifier type which must be in the same format 
+            as TokenStatusListVerifier.serialize_verifier.
+
+        Returns:
+            A TokenStatusListVerifier instance with relevant fields populated.
+        """
+
+        new_verifier = TokenStatusListVerifier(
+            encoding=seralized_verifier["encoding"],
+            issuer_uri=seralized_verifier["issuer_uri"],
+            payload=seralized_verifier["payload"],
+        )
+
+        if new_verifier.encoding == "JWT":
+            new_verifier.headers = seralized_verifier["headers"]
+            new_verifier.bit_array = BitArray.load(seralized_verifier["payload"]["status_list"])
+        elif new_verifier.encoding == "CWT":
+            new_verifier.protected_headers = seralized_verifier["protected_headers"]
+            new_verifier.unprotected_headers = seralized_verifier["unprotected_headers"]
+            new_verifier.bit_array = BitArray.load(seralized_verifier["payload"][STATUS_LIST])
+        else:
+            raise ValueError(f"Invalid encoding: was {seralized_verifier["encoding"]} but needs to be JWT or CWT")
+        
+        return new_verifier

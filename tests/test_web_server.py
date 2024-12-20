@@ -7,7 +7,7 @@ import requests as r
 
 from src.verifier import TokenStatusListVerifier
 from src.issuer import TokenStatusListIssuer
-from src.issuer import TokenStatusListIssuer, ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
+from src.issuer import ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
 from src.token_status_list import BitArray
 
 ISSUER = "http://localhost:3001"
@@ -34,7 +34,6 @@ def test_jwt_verify(status, es256_verifier):
     response = verifier.establish_connection("JWT", ISSUER + "/jwt_example")
     
     # Check that token is correctly verified
-    verifier = TokenStatusListVerifier()
     verifier.jwt_verify(response, es256_verifier)
 
     # Check that headers and payload are as expected
