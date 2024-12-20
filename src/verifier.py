@@ -34,7 +34,6 @@ class TokenStatusListVerifier():
         self,
     ):
         self.issuer_uri: Optional[str] = None
-        self.encoding: Optional[Literal["CWT", "JWT"]] = None
 
         self.headers: Optional[dict] = None
         self.protected_headers: Optional[dict] = None
@@ -43,49 +42,15 @@ class TokenStatusListVerifier():
         self.payload: Optional[dict] = None
 
         self.bit_array: Optional[BitArray] = None
-        self.idx: Optional[int] = None
-
-    def jwt_parse_referenced_token(self, token: bytes):
-        _, payload = token.split(b".")
-        payload = json.loads(b64url_decode(payload))
-
-        status_list = payload["status"]["status_list"]
-
-        self.idx = status_list["idx"]
-        self.issuer_uri = status_list["uri"]
-
-    def cwt_parse_referenced_token(self, token: bytes):
-        try:
-            import cbor2
-        except ImportError as err:
-            raise ImportError("cbor extra required to use this function") from err
-        
-        # Extract data
-        obj = cbor2.loads(token)
-        assert obj.tag == 18
-
-        # TODO: Not sure if this is correct. Section 6.3 is unspecific
-        _, _, encoded_payload, _ = obj.value
-        payload: dict = cbor2.loads(encoded_payload)
-        status = cbor2.loads(payload[STATUS])
-        status_list = cbor2.loads(status[STATUS_LIST])
-
-        self.idx = status_list[0]
-        self.issuer_uri = status_list[3]
-
-    # TODO?: See Section 6.3: IssuerAuth as specified in ISO mDL (also referred to as signed MSO)
 
     def establish_connection(
         self, 
         status_list_format: Literal["CWT", "JWT"],
-        issuer_uri: Optional[str] = None,
+        issuer_uri: str,
     ) -> bytes:
         """ Establish connection. Returns base64 encoded response. """
-        assert issuer_uri is not None or self.issuer_uri is not None,\
-            "Please provide a URI, either directly or through parse_referenced_token"
-
         response = r.get(
-            issuer_uri if issuer_uri is not None else self.issuer_uri, 
+            issuer_uri, 
             headers={"Accept": f"application/statuslist+{status_list_format.lower()}"}
         )
         
@@ -209,7 +174,7 @@ class TokenStatusListVerifier():
         self.unprotected_headers = unprotected_headers
         self.payload = payload
 
-    def get_status(self, idx: Optional[int]) -> int:
+    def get_status(self, idx: int) -> int:
         """
         Returns the status of an object from the status_list in payload. 
         Requies that the payload has already been checked using jwt_verify or cwt_verify.
@@ -226,11 +191,8 @@ class TokenStatusListVerifier():
         assert self.encoding is not None and self.payload is not None,\
             "Before accessing the status, please verify using jwt_verify or cwt_verify"
 
-        assert self.idx is not None or idx is not None,\
-            "Please provide an index, either directly or through parse_referenced_token"
-
         if self.bit_array is None:    
             status_list = self.payload["status_list"] if self.encoding == "JWT" else self.payload[STATUS_LIST]
             self.bit_array = BitArray.load(status_list)
         
-        return self.bit_array[idx if idx is not None else self.idx]
+        return self.bit_array[idx]

@@ -41,8 +41,8 @@ def issue_signed_jwt_token() -> str:
         kid="12",
         iss="http://localhost:3001",
         sub="http://localhost:3001/jwt_example",
-        iat=int(time()),
-        exp=int(time() + 1e5),  # 1e5 seconds ~= 2.5 hours
+        iat=1734650332,
+        exp=1744650332,
     )
 
     return token
@@ -54,8 +54,8 @@ def issue_signed_cwt_token() -> bytes:
         kid="12",
         iss="http://localhost:3001",
         sub="http://localhost:3001/cwt_example",
-        iat=int(time()),
-        exp=int(time() + 10000),
+        iat=1734650332,
+        exp=1744650332,
     )
 
     return token
