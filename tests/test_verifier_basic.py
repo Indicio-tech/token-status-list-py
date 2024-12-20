@@ -5,7 +5,7 @@ from time import time
 
 from google.auth.crypt.es256 import ES256Signer, ES256Verifier
 from cryptography.hazmat.primitives.asymmetric import ec
-
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from src.token_status_list import BitArray
 from src.issuer import TokenStatusListIssuer, ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
@@ -27,6 +27,7 @@ def trivial_verifier(payload: bytes, signature: bytes) -> bool:
     """ Trivial verifier: always says that the signature is valid. """
     return True
 
+# More advanced verification
 ES256_KEY = ec.generate_private_key(ec.SECT233K1())
 
 @pytest.fixture
@@ -39,6 +40,14 @@ def es256_signer():
 @pytest.fixture
 def es256_verifier():
     verifier = ES256Verifier(ES256_KEY.public_key())
+
+    p_key = ES256_KEY.public_key()
+    public_key_b = p_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+    print(public_key_b)
+
+    public_key_ds = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECT233K1(), public_key_b)
+    print(p_key == public_key_ds)
+    
     def verify(payload: bytes, signature: bytes) -> bool:
         return verifier.verify(payload, signature)
     yield verify
