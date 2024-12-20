@@ -2,7 +2,7 @@ services:
   issuer:
     build:
       context: .
-      dockerfile: tests/test_web_server/issuer/Dockerfile
+      dockerfile: tests/test_web_server/Dockerfile
     ports:
       - "3001:80"
     restart: unless-stopped
