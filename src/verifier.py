@@ -198,7 +198,7 @@ class TokenStatusListVerifier():
         """
         Returns the status of an object from the status_list in payload. 
         Requies that the payload has already been checked using jwt_verify or cwt_verify.
-        Caches the status list as a BitArray type for ease of future reference.
+        Caches the status list as a BitArray for ease of future reference.
 
         Args:
             payload: REQUIRED. A verified payload returned from jwt_verify or cwt_verify.
