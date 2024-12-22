@@ -2,8 +2,8 @@
 
 import json
 import pytest
-from src.token_status_list import BitArray, b64url_decode
-from src.issuer import TokenStatusListIssuer
+from bit_array import BitArray, b64url_decode
+from token_status_list.issuer import TokenStatusListIssuer
 
 
 @pytest.fixture

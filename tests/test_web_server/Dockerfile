@@ -12,7 +12,7 @@ RUN curl -sSL https://pdm-project.org/install-pdm.py | python3 -
 
 WORKDIR /usr/src/app
 COPY pdm.lock pyproject.toml tests/test_web_server/main.py README.md ./
-COPY src/token_status_list.py src/issuer.py ./src/
+COPY src/bit_array.py src/token_status_list/issuer.py ./src/
 
 # cbor2 is an optional dependency, but we use it for this test
 RUN /root/.local/bin/pdm add cbor2
