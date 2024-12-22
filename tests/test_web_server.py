@@ -5,10 +5,10 @@ from google.auth.crypt.es256 import ES256Verifier
 from cryptography.hazmat.primitives.asymmetric import ec
 import requests as r
 
-from src.verifier import TokenStatusListVerifier
-from src.issuer import TokenStatusListIssuer
-from src.issuer import ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
-from src.token_status_list import BitArray
+from token_status_list.verifier import TokenStatusListVerifier
+from token_status_list.issuer import TokenStatusListIssuer
+from token_status_list.issuer import ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
+from bit_array import BitArray
 
 ISSUER = "http://localhost:3001"
 

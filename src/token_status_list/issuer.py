@@ -1,7 +1,3 @@
-import base64
-import json
-from random import sample
-from secrets import choice, randbelow
 from time import time
 from typing import (
     Any,
@@ -17,7 +13,7 @@ from typing import (
     cast,
 )
 
-from src.token_status_list import *
+from bit_array import *
 
 # COSE Headers
 ALG = 1
