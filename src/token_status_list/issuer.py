@@ -14,6 +14,7 @@ from typing import (
 )
 
 from bit_array import *
+from issuer import *
 
 # COSE Headers
 ALG = 1
@@ -43,60 +44,8 @@ KNOWN_ALGS_TO_CWT_ALG = {
 
 CWTKnownAlgs = Literal["ES256", "ES384", "ES512", "EdDSA"]
 
-class TokenSigner(Protocol):
-    """Protocol defining the signing callable."""
-
-    def __call__(self, payload: bytes) -> bytes:
-        """Sign the payload returning bytes of the signature."""
-        ...
-
-class TokenStatusListIssuer(Generic[N]):
+class TokenStatusListIssuer(Issuer):
     """Token Status List Issuer."""
-
-    def __init__(
-        self,
-        status_list: BitArray[N],
-        allocator: IndexAllocator,
-    ):
-        """Initialize issuer status list."""
-        self.allocator = allocator
-        self.status_list = status_list
-
-    def __getitem__(self, index: int):
-        """Retrieve the status of an index."""
-        return self.status_list.get(index)
-
-    def __setitem__(self, index: int, status: StatusTypes):
-        """Set the status of an index."""
-        current = self.status_list.get(index)
-        if current == 0x01 and status != 0x01:
-            raise ValueError("Cannot change status of index previously set to invalid")
-
-        return self.status_list.set(index, status)
-
-    def __len__(self):
-        """Return size of array."""
-        return len(self.status_list.lst)
-
-    def take(self) -> int:
-        """Return the next index to use."""
-        return self.allocator.take()
-
-    def take_n(self, n: int) -> List[int]:
-        """Return the next n indices to use."""
-        return self.allocator.take_n(n)
-
-    def dump(self) -> dict:
-        """Return serializable representation of issuer status list.
-
-        This is an internal representation of the list, including the index selection
-        strategy and the list of taken indices.
-        """
-        return {
-            "allocator": self.allocator.dump(),
-            "status_list": self.status_list.dump(),
-        }
-
     @classmethod
     def load(cls, value: dict) -> "TokenStatusListIssuer":
         """Parse issuer status list from dictionary."""
@@ -125,8 +74,8 @@ class TokenStatusListIssuer(Generic[N]):
         return cls(parsed_status_list, allocator)
 
     @classmethod
-    def new(cls, bits: Bits, size: int, strategy: Literal["linear", "random"] = "random"):
-        """Return a new TokenStatusListIssuer."""
+    def new(cls, bits: Bits, size: int, strategy: Literal["linear", "random"] = "random") -> "TokenStatusListIssuer":
+        """Return a new Issuer."""
         if strategy == "linear":
             allocator = LinearIndexAllocator(size)
         elif strategy == "random":
