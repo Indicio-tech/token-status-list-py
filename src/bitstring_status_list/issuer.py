@@ -17,20 +17,26 @@ from typing import (
 
 MIN_LIST_LENGTH = 131072
 
+class StatusListLengthError(Exception):
+    """Raised when the status list is insufficiently long."""
+
 class BitstringStatusListIssuer(Issuer):
     """Bitstring Status List Issuer."""
     def __init__(
         self,
         status_list: BitArray[N],
         allocator: IndexAllocator,
+        min_list_length: int = MIN_LIST_LENGTH,
     ):
-        super().__init__
-        if self.status_list.bits != 1:
-            raise ValueError("Bitstring status list must have single bit statuses.")
-        
-        if len(self.status_list) < MIN_LIST_LENGTH:
-            raise ValueError(f"Bitstring status list must be at least {MIN_LIST_LENGTH} bits long, 
-                             but was {len(self.status_list)} bits long instead.")
+        super().__init__(
+            status_list=status_list,
+            allocator=allocator
+        )
+        self.min_list_length = min_list_length
+
+        if len(self.status_list) < self.min_list_length:
+            raise StatusListLengthError(f"Bitstring status list must be at least {self.min_list_length} 
+                                        bits long, but was {len(self.status_list)} bits long instead.")
 
     @classmethod
     def load(cls, value: dict) -> "BitstringStatusListIssuer":
@@ -57,33 +63,25 @@ class BitstringStatusListIssuer(Issuer):
             raise TypeError("status_list must be dict")
 
         parsed_status_list = BitArray.load(status_list)
-
-        if parsed_status_list.bits != 1:
-            raise ValueError("Bitstring status list must have single bit statuses.")
-
-        if len(parsed_status_list) < MIN_LIST_LENGTH:
-            raise ValueError(f"Bitstring status list must be at least {MIN_LIST_LENGTH} bits long, 
-                             but was {len(parsed_status_list)} bits long instead.")
-
         return cls(parsed_status_list, allocator)
 
     @classmethod
-    def new(cls, size: int, strategy: Literal["linear", "random"] = "random") -> "BitstringStatusListIssuer":
+    def new(cls, size: int, bits: Bits = 1, strategy: Literal["linear", "random"] = "random", min_list_length: int = MIN_LIST_LENGTH) -> "BitstringStatusListIssuer":
         """Return a new Issuer."""
-        if size < MIN_LIST_LENGTH:
-            raise ValueError(f"Bitstring status list must be at least {MIN_LIST_LENGTH} bits long, 
-                             but was {size} bits long instead.")
+        if size < min_list_length:
+            raise StatusListLengthError(f"Bitstring status list must be at least {min_list_length} bits 
+                                        long, but was {size} bits long instead.")
         
         if strategy == "linear":
             allocator = LinearIndexAllocator(size)
         elif strategy == "random":
             allocator = RandomIndexAllocator(
-                BitArray.with_at_least(1, size), num_allocated=0
+                BitArray.with_at_least(bits, size), num_allocated=0
             )
         else:
             raise ValueError(f"Invalid strategy: {strategy}")
 
-        status_list = BitArray.with_at_least(1, size)
+        status_list = BitArray.with_at_least(bits, size)
         return cls(status_list, allocator)
 
     def generate_jwt(
@@ -153,9 +151,9 @@ class BitstringStatusListIssuer(Issuer):
             ttl=ttl,
         )
         
-        enc_headers = dict_to_b64(headers).decode()
-        enc_payload = dict_to_b64(payload).decode()
-        enc_to_sign = f"{enc_headers}.{enc_payload}".encode()
+        enc_headers = dict_to_b64(headers)
+        enc_payload = dict_to_b64(payload)
+        enc_to_sign = enc_headers + b"." + enc_payload
 
         signature = signer(enc_to_sign)
         return enc_to_sign + b"." + signature
@@ -183,7 +181,8 @@ class BitstringStatusListIssuer(Issuer):
             ttl=ttl,
         )
 
+        payload.update(headers)
         payload["proof"] = proof  # TODO: is this correct?
-        return dict_to_b64(headers) + b"." + dict_to_b64(payload)
+        return dict_to_b64(payload)
 
    
