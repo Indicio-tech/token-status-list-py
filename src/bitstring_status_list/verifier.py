@@ -1,15 +1,7 @@
 from typing import (
-    Any,
-    Callable,
-    Generic,
-    List,
     Literal,
     Optional,
     Protocol,
-    Tuple,
-    TypeVar,
-    Union,
-    cast,
 )
 
 import requests as r
