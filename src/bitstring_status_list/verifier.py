@@ -20,6 +20,7 @@ class EmbeddingTokenVerifier(Protocol):
     """Protocol defining the verifying callable for embedding signatures."""
 
     def __call__(self, payload: bytes, signature: dict) -> bool:
+        """Verify the signature of the payload. Returns true if the signature is valid."""
         ...
 
 class StatusRetrievalError(Exception):
@@ -92,7 +93,7 @@ class BitstringStatusListVerifier():
         
         if b"." in sl_response:
             # Enveloping proof
-            
+
             # Check that message is in valid JWT format 
             headers_bytes, payload_bytes, signature = sl_response.split(b".")
             assert headers_bytes and payload_bytes and signature
@@ -110,13 +111,16 @@ class BitstringStatusListVerifier():
             # Extract data
             self.payload = json.loads(b64url_decode(sl_response))
             
-            # TODO: Verification of signature. not sure how this works for embedded proofs
+            # Verify signature
+            unsigned_payload = {key: self.payload[key] for key in self.payload if key != "proof"}
+            if not verifier(dict_to_b64(unsigned_payload), self.payload["proof"]):
+                raise StatusVerificationError("Invalid signature on payload")
 
         # Check values of status list against provided credential
         credential_subject = self.payload["credentialSubject"]
         if credential_subject["statusPurpose"] != self.credential_status["statusPurpose"]:
             raise StatusVerificationError(
-                f"statusPurpose in credential is {self.credential_status["statusPurpose"]}, while
+                f"statusPurpose in credential is {self.credential_status["statusPurpose"]}, while \
                 statusPurpose in status list is {credential_subject["statusPurpose"]}"
             )
         
@@ -124,19 +128,19 @@ class BitstringStatusListVerifier():
         bits = self.credential_status.get("statusSize")
         self._bit_array = BitArray.from_b64(1 if bits is None else bits, credential_subject["encodedList"])
         if self._bit_array.size < min_list_length:
-            raise StatusListLengthError(f"Bitstring status list must be at least {min_list_length} 
+            raise StatusListLengthError(f"Bitstring status list must be at least {min_list_length} \
                                         bits long, but was {self._bit_array.size} bits long instead.")
         
     def get_status(self, idx: Optional[int] = None):
         assert self._bit_array is not None, "Before accessing the status, please verify using jwt_verify or cwt_verify"
         if idx is None:
-            idx = self.credential_status["statusListIndex"]
+            idx = int(self.credential_status["statusListIndex"])
 
         status = self._bit_array[idx]
         
         return_dict = {
             "status": status,
-            "valid": bool(status),
+            "valid": not bool(status),
         }
 
         # If purpose == message, extract the relevant message and add it to the return_dict, as 
