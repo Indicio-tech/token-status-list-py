@@ -57,7 +57,6 @@ class TokenStatusListVerifier():
             headers={"Accept": f"application/statuslist+{status_list_format.lower()}"}
         )
         
-        # TODO?: Follow links in the 300 range
         assert 200 <= response.status_code < 300, f"Unable to establish connection."
         self.issuer_uri = issuer_uri
         self.encoding = status_list_format

@@ -10,6 +10,20 @@ from typing import (
 
 MIN_LIST_LENGTH = 131072
 
+class EnvelopingTokenSigner(Protocol):
+    """Protocol defining the signing callable for enveloping proofs."""
+
+    def __call__(self, payload: bytes) -> bytes:
+        """Sign the payload returning bytes of the signature."""
+        ...
+
+class EmbeddingTokenSigner(Protocol):
+    """Protocol defining the signing callable for embedding proofs."""
+
+    def __call__(self, payload: bytes) -> dict:
+        """Sign the payload returning signature in dict form to inject into payload."""
+        ...
+
 class StatusListLengthError(Exception):
     """Raised when the status list is insufficiently long."""
 
@@ -28,8 +42,8 @@ class BitstringStatusListIssuer(Issuer):
         self.min_list_length = min_list_length
 
         if len(self.status_list) < self.min_list_length:
-            raise StatusListLengthError(f"Bitstring status list must be at least {self.min_list_length} 
-                                        bits long, but was {len(self.status_list)} bits long instead.")
+            raise StatusListLengthError(f"Bitstring status list must be at least {self.min_list_length} bits \
+                                        long, but was {len(self.status_list)} bits long instead.")
 
     @classmethod
     def load(cls, value: dict) -> "BitstringStatusListIssuer":
@@ -62,7 +76,7 @@ class BitstringStatusListIssuer(Issuer):
     def new(cls, size: int, bits: Bits = 1, strategy: Literal["linear", "random"] = "random", min_list_length: int = MIN_LIST_LENGTH) -> "BitstringStatusListIssuer":
         """Return a new Issuer."""
         if size < min_list_length:
-            raise StatusListLengthError(f"Bitstring status list must be at least {min_list_length} bits 
+            raise StatusListLengthError(f"Bitstring status list must be at least {min_list_length} bits \
                                         long, but was {size} bits long instead.")
         
         if strategy == "linear":
@@ -81,7 +95,7 @@ class BitstringStatusListIssuer(Issuer):
         self,
         alg: str,
         kid: str,
-        status_purpose = str | List[str],
+        status_purpose = Union[str, List[str]],
         id: Optional[str] = None,
         type: Optional[List[str]] = None,
         validFrom: Optional[str] = None,
@@ -94,10 +108,8 @@ class BitstringStatusListIssuer(Issuer):
         }
 
         payload = {
-            # TODO: What is the @context field?
             "@context": [
                 "https://www.w3.org/ns/credentials/v2",
-                "https://www.w3.org/ns/credentials/examples/v2"
             ],
 
             **({"id": id} if id else {}),
@@ -111,10 +123,10 @@ class BitstringStatusListIssuer(Issuer):
             **({"validUntil": validUntil} if validUntil else {}),
 
             "credentialSubject": {
-                **({"id": id} if id else {}),  # TODO: this is very unclear
+                **({"id": id} if id else {}),
                 "type": "BitstringStatusList",
                 "statusPurpose": status_purpose,
-                "encodedList": self.status_list.dump(),
+                "encodedList": self.status_list.to_b64(),
                 **({"ttl": ttl} if ttl else {}),
             }
         }
@@ -123,7 +135,7 @@ class BitstringStatusListIssuer(Issuer):
     
     def sign_jwt_enveloping(
         self,
-        signer: TokenSigner,
+        signer: EnvelopingTokenSigner,
         alg: str,
         kid: str,
         status_purpose = str | List[str],
@@ -153,7 +165,7 @@ class BitstringStatusListIssuer(Issuer):
     
     def sign_jwt_embedding(
         self,
-        proof: dict,
+        signer: EmbeddingTokenSigner,
         alg: str,
         kid: str,
         status_purpose = str | List[str],
@@ -175,7 +187,10 @@ class BitstringStatusListIssuer(Issuer):
         )
 
         payload.update(headers)
-        payload["proof"] = proof  # TODO: is this correct?
+
+        unsigned_payload_bytes = dict_to_b64(payload)
+        payload["proof"] = signer(unsigned_payload_bytes)
+
         return dict_to_b64(payload)
 
    

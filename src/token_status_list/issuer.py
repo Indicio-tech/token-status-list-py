@@ -38,6 +38,13 @@ KNOWN_ALGS_TO_CWT_ALG = {
 
 CWTKnownAlgs = Literal["ES256", "ES384", "ES512", "EdDSA"]
 
+class TokenSigner(Protocol):
+    """Protocol defining the signing callable."""
+
+    def __call__(self, payload: bytes) -> bytes:
+        """Sign the payload returning bytes of the signature."""
+        ...
+        
 class TokenStatusListIssuer(Issuer):
     """Token Status List Issuer."""
     @classmethod

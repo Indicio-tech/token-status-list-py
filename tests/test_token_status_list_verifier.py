@@ -11,8 +11,6 @@ from bit_array import BitArray
 from token_status_list.issuer import TokenStatusListIssuer, ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
 from token_status_list.verifier import TokenStatusListVerifier
 
-from typing import Tuple
-
 @pytest.fixture
 def status():
     lst = BitArray(1, b"\xb9\xa3")

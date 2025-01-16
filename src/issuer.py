@@ -1,11 +1,6 @@
 from bit_array import *
 
-class TokenSigner(Protocol):
-    """Protocol defining the signing callable."""
 
-    def __call__(self, payload: bytes) -> bytes:
-        """Sign the payload returning bytes of the signature."""
-        ...
 
 class Issuer(Generic[N]):
     """ Base class for a generic issuer. """
