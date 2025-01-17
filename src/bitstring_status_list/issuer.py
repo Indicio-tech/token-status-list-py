@@ -93,14 +93,15 @@ class BitstringStatusListIssuer(Issuer):
 
     def generate_jwt(
         self,
-        alg: str,
-        kid: str,
+        alg: Optional[str],
+        kid: Optional[str],
         status_purpose = Union[str, List[str]],
         id: Optional[str] = None,
         type: Optional[List[str]] = None,
         validFrom: Optional[str] = None,
         validUntil: Optional[str] = None,
-        ttl: Optional[int] = None,  
+        ttl: Optional[int] = None,
+        issuer: Optional[str] = None,
     ) -> Tuple[dict, dict]:
         headers = {
             "kid": kid,
@@ -119,6 +120,7 @@ class BitstringStatusListIssuer(Issuer):
                     if type 
                     else ["BitstringStatusListCredential"],
 
+            **({"issuer": issuer} if issuer else {}),
             **({"validFrom": validFrom} if validFrom else {}),
             **({"validUntil": validUntil} if validUntil else {}),
 
@@ -144,6 +146,7 @@ class BitstringStatusListIssuer(Issuer):
         validFrom: Optional[str] = None,
         validUntil: Optional[str] = None,
         ttl: Optional[int] = None,
+        issuer: Optional[str] = None,
     ) -> bytes:
         headers, payload = self.generate_jwt(
             alg=alg,
@@ -154,6 +157,7 @@ class BitstringStatusListIssuer(Issuer):
             validFrom=validFrom,
             validUntil=validUntil,
             ttl=ttl,
+            issuer=issuer,
         )
         
         enc_headers = dict_to_b64(headers)
@@ -166,27 +170,25 @@ class BitstringStatusListIssuer(Issuer):
     def sign_jwt_embedding(
         self,
         signer: EmbeddingTokenSigner,
-        alg: str,
-        kid: str,
         status_purpose = str | List[str],
         id: Optional[str] = None,
         type: Optional[List[str]] = None,
         validFrom: Optional[str] = None,
         validUntil: Optional[str] = None,
         ttl: Optional[int] = None,
+        issuer: Optional[str] = None,
     ):
         headers, payload = self.generate_jwt(
-            alg=alg,
-            kid=kid,
+            alg=None,
+            kid=None,
             status_purpose=status_purpose,
             id=id,
             type=type,
             validFrom=validFrom,
             validUntil=validUntil,
             ttl=ttl,
+            issuer=issuer,
         )
-
-        payload.update(headers)
 
         unsigned_payload_bytes = dict_to_b64(payload)
         payload["proof"] = signer(unsigned_payload_bytes)

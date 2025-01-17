@@ -16,16 +16,24 @@ def status():
         status[idx] = 1
     yield status
 
-def trivial_signer(payload: bytes) -> bytes:
+# Integrity
+def trivial_enveloping_signer(payload: bytes) -> bytes:
     return b"signed"
 
-def trivial_verifier(payload: bytes, signature: bytes) -> bool:
+def trivial_enveloping_verifier(payload: bytes, signature: bytes) -> bool:
+    """ Trivial verifier: always says that the signature is valid. """
+    return True
+
+def trivial_embedding_signer(payload: bytes) -> dict:
+    return {"value": "signed"}
+
+def trivial_embedding_verifier(payload: bytes, signature: dict) -> bool:
     """ Trivial verifier: always says that the signature is valid. """
     return True
 
 def test_verify_jwt_basic_enveloping(status: BitstringStatusListIssuer):
     encoded_jwt = status.sign_jwt_enveloping(
-        signer=trivial_signer,
+        signer=trivial_enveloping_signer,
         alg="ES256",
         kid="12",
         status_purpose="revocation",
@@ -40,7 +48,7 @@ def test_verify_jwt_basic_enveloping(status: BitstringStatusListIssuer):
     }
 
     verifier = BitstringStatusListVerifier(credential_status)
-    verifier.verify_jwt(encoded_jwt, verifier=trivial_verifier)
+    verifier.verify_jwt(encoded_jwt, verifier=trivial_enveloping_verifier)
 
     assert verifier.headers == {"alg": "ES256", "kid": "12"}
     assert verifier.payload == {
@@ -64,4 +72,42 @@ def test_verify_jwt_basic_enveloping(status: BitstringStatusListIssuer):
         }
 
 def test_verify_jwt_basic_embedding(status: BitstringStatusListIssuer):
-    ...
+    encoded_jwt = status.sign_jwt_embedding(
+        signer=trivial_embedding_signer,
+        status_purpose="revocation",
+    )
+
+    credential_status = {
+        "id": "https://example.com/credentials/status/3#94567",
+        "type": "BitstringStatusListEntry",
+        "statusPurpose": "revocation",
+        "statusListIndex": "0",
+        "statusListCredential": "https://example.com/credentials/status/3"
+    }
+
+    verifier = BitstringStatusListVerifier(credential_status)
+    verifier.verify_jwt(encoded_jwt, verifier=trivial_embedding_verifier)
+
+    assert verifier.payload == {
+        "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+        ],
+
+        "type": ["BitstringStatusListCredential"],
+
+        "credentialSubject": {
+            "type": "BitstringStatusList",
+            "statusPurpose": "revocation",
+            "encodedList": status.status_list.to_b64(),
+        },
+
+        "proof": {
+            "value": "signed",
+        },
+    }
+
+    for i in range(len(status)):
+        assert verifier.get_status(i) == {
+            "status": status[i],
+            "valid": not bool(status[i])
+        }
