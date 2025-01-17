@@ -86,7 +86,8 @@ class BitstringStatusListVerifier():
             sl_response: REQUIRED. A base64-encoded status_list response, acquired (eg.) from 
             establish_connection().
 
-            verifier: REQUIRED. A callable that verifies the signature of a payload.
+            verifier: REQUIRED. A callable that verifies the signature of a payload. Must match
+            the proof format of the sl_response (embedded or enveloping)
 
             min_list_length: OPTIONAL. The minimum list length, recommended to be 131,072 (see S. 6.1)
         """
