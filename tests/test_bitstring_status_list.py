@@ -65,7 +65,7 @@ def test_verify_jwt_basic_enveloping(status: BitstringStatusListIssuer):
         }
     }
 
-    for i in range(len(status)):
+    for i in range(status.status_list.size):
         assert verifier.get_status(i) == {
             "status": status[i],
             "valid": not bool(status[i])
@@ -106,8 +106,18 @@ def test_verify_jwt_basic_embedding(status: BitstringStatusListIssuer):
         },
     }
 
-    for i in range(len(status)):
+    for i in range(status.status_list.size):
         assert verifier.get_status(i) == {
             "status": status[i],
             "valid": not bool(status[i])
         }
+
+def test_status_message():
+    # Create a bitstring status list with a variety of different statuses
+    bitstring = BitstringStatusListIssuer.new(MIN_LIST_LENGTH, bits=2)
+    for idx in bitstring.take_n(50):
+        bitstring[idx] = 1
+    for idx in bitstring.take_n(50):
+        bitstring[idx] = 2
+    for idx in bitstring.take_n(50):
+        bitstring[idx] = 3

@@ -83,7 +83,7 @@ class BitstringStatusListIssuer(Issuer):
             allocator = LinearIndexAllocator(size)
         elif strategy == "random":
             allocator = RandomIndexAllocator(
-                BitArray.with_at_least(bits, size), num_allocated=0
+                BitArray.with_at_least(1, size), num_allocated=0
             )
         else:
             raise ValueError(f"Invalid strategy: {strategy}")
