@@ -121,3 +121,35 @@ def test_status_message():
         bitstring[idx] = 2
     for idx in bitstring.take_n(50):
         bitstring[idx] = 3
+
+    encoded_jwt = bitstring.sign_jwt_enveloping(
+        signer=trivial_enveloping_signer,
+        alg="ES256",
+        kid="12",
+        status_purpose="revocation",
+    )
+
+    status_message = [
+        {"status":"0x0", "message":"0"},
+        {"status":"0x1", "message":"1"},
+        {"status":"0x2", "message":"2"},
+        {"status":"0x3", "message":"3"},
+    ]
+    
+    credential_status = {
+        "id": "https://example.com/credentials/status/3#94567",
+        "type": "BitstringStatusListEntry",
+        "statusPurpose": "revocation",
+        "statusListIndex": "0",
+        "statusListCredential": "https://example.com/credentials/status/3"
+    }
+
+    verifier = BitstringStatusListVerifier(credential_status)
+    verifier.verify_jwt(encoded_jwt, verifier=trivial_enveloping_verifier)
+
+    for i in range(bitstring.status_list.size):
+        assert verifier.get_status(i) == {
+            "status": bitstring[i],
+            "valid": not bool(bitstring[i]),
+            "message": str(bitstring[i]),
+        }
