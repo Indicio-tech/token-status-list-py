@@ -80,7 +80,7 @@ def test_verify_jwt_basic(status: TokenStatusListIssuer):
     }
 
     # Check that statuses match
-    for i in range(len(status)):
+    for i in range(status.status_list.size):
         assert status[i] == verifier.get_status(i)
 
 def test_verify_jwt_expired(status: TokenStatusListIssuer):
@@ -117,7 +117,7 @@ def test_verify_jwt_es256(status: TokenStatusListIssuer, es256_signer, es256_ver
     verifier.jwt_verify(payload.encode(), es256_verifier)
 
     # Check that values match
-    for i in range(len(status)):
+    for i in range(status.status_list.size):
         assert status[i] == verifier.get_status(i)
 
 def test_verify_cwt_basic(status: TokenStatusListIssuer):
@@ -154,7 +154,7 @@ def test_verify_cwt_basic(status: TokenStatusListIssuer):
     }
 
     # Check that values match
-    for i in range(len(status)):
+    for i in range(status.status_list.size):
         assert status[i] == verifier.get_status(i)
 
 def test_verify_cwt_expired(status: TokenStatusListIssuer):
@@ -191,5 +191,5 @@ def test_verify_cwt_es256(status: TokenStatusListIssuer, es256_signer, es256_ver
     verifier.cwt_verify(token, es256_verifier)
 
     # Check that values match
-    for i in range(len(status)):
+    for i in range(status.status_list.size):
         assert status[i] == verifier.get_status(i)

@@ -352,11 +352,8 @@ class RandomIndexAllocator(IndexAllocator):
         byte_idx = self._rand_settle(
             len(self.allocated.lst), lambda index: self.allocated.lst[index] < 255
         )
-        print("byte_idx:\t", byte_idx)
-        print(len(self.allocated.lst))
         start = byte_idx << 3
         end = start + 8
-        print("start, end:\t", start, end)
         index = choice(self.linear_scan(start, end, lambda i: self.allocated[i] == 0))
         self.allocated[index] = 1
         self.num_allocated += 1
