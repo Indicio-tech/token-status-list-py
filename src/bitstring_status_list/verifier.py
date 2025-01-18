@@ -96,11 +96,11 @@ class BitstringStatusListVerifier():
             # Enveloping proof
 
             # Check that message is in valid JWT format 
-            headers_bytes, payload_bytes, signature = sl_response.split(b".")
+            headers_bytes, payload_bytes, signature = sl_response.split(b".", maxsplit=3)
             assert headers_bytes and payload_bytes and signature
 
             # Verify signature. verifier must be of type EnvelopingTokenVerifier
-            if not verifier(headers_bytes + b"." + payload_bytes, b64url_decode(signature)):
+            if not verifier(headers_bytes + b"." + payload_bytes, signature):
                 raise StatusVerificationError("Invalid signature on payload.")
             
             # Extract data

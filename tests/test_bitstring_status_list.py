@@ -1,13 +1,11 @@
 import pytest
-from time import time
 
 from google.auth.crypt.es256 import ES256Signer, ES256Verifier
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from bit_array import BitArray
-from bitstring_status_list.issuer import BitstringStatusListIssuer, MIN_LIST_LENGTH
-from bitstring_status_list.verifier import BitstringStatusListVerifier
+from bit_array import b64url_encode, b64url_decode
+from bitstring_status_list.issuer import BitstringStatusListIssuer, EmbeddingTokenSigner, EnvelopingTokenSigner, MIN_LIST_LENGTH
+from bitstring_status_list.verifier import BitstringStatusListVerifier, EmbeddingTokenVerifier, EnvelopingTokenVerifier
 
 @pytest.fixture
 def status():
@@ -30,6 +28,38 @@ def trivial_embedding_signer(payload: bytes) -> dict:
 def trivial_embedding_verifier(payload: bytes, signature: dict) -> bool:
     """ Trivial verifier: always says that the signature is valid. """
     return True
+
+
+# More advanced verification
+ES256_KEY = ec.generate_private_key(ec.SECT233K1())
+
+@pytest.fixture
+def es256_enveloping_signer():
+    signer = ES256Signer(ES256_KEY)
+    def sign(payload: bytes) -> bytes:
+        return signer.sign(payload)
+    yield sign
+
+@pytest.fixture
+def es256_enveloping_verifier():
+    verifier = ES256Verifier(ES256_KEY.public_key())
+    def verify(payload: bytes, signature: bytes) -> bool:
+        return verifier.verify(payload, signature)
+    yield verify
+
+@pytest.fixture
+def es256_embedding_signer():
+    signer = ES256Signer(ES256_KEY)
+    def sign(payload: bytes) -> dict:
+        return {"proofValue": b64url_encode(signer.sign(payload)).decode()}
+    yield sign
+
+@pytest.fixture
+def es256_embedding_verifier():
+    verifier = ES256Verifier(ES256_KEY.public_key())
+    def verify(payload: bytes, signature: dict) -> bool:
+        return verifier.verify(payload, b64url_decode(signature["proofValue"].encode()))
+    yield verify
 
 def test_verify_jwt_basic_enveloping(status: BitstringStatusListIssuer):
     encoded_jwt = status.sign_jwt_enveloping(
@@ -156,4 +186,60 @@ def test_status_message():
             "status": bitstring[i],
             "valid": not bool(bitstring[i]),
             "message": str(bitstring[i]),
+        }
+
+def test_verify_es256_enveloping(
+        status: BitstringStatusListIssuer, 
+        es256_enveloping_signer: EnvelopingTokenSigner, 
+        es256_enveloping_verifier: EnvelopingTokenVerifier,
+):
+    encoded_jwt = status.sign_jwt_enveloping(
+        signer=es256_enveloping_signer,
+        alg="ES256",
+        kid="12",
+        status_purpose="revocation",
+    )
+
+    credential_status = {
+        "id": "https://example.com/credentials/status/3#94567",
+        "type": "BitstringStatusListEntry",
+        "statusPurpose": "revocation",
+        "statusListIndex": "0",
+        "statusListCredential": "https://example.com/credentials/status/3"
+    }
+
+    verifier = BitstringStatusListVerifier(credential_status)
+    verifier.verify_jwt(encoded_jwt, verifier=es256_enveloping_verifier)
+
+    for i in range(status.status_list.size):
+        assert verifier.get_status(i) == {
+            "status": status[i],
+            "valid": not bool(status[i])
+        }
+
+def test_verify_es256_embedding(
+        status: BitstringStatusListIssuer, 
+        es256_embedding_signer: EmbeddingTokenSigner, 
+        es256_embedding_verifier: EmbeddingTokenVerifier,
+):
+    encoded_jwt = status.sign_jwt_embedding(
+        signer=es256_embedding_signer,
+        status_purpose="revocation",
+    )
+
+    credential_status = {
+        "id": "https://example.com/credentials/status/3#94567",
+        "type": "BitstringStatusListEntry",
+        "statusPurpose": "revocation",
+        "statusListIndex": "0",
+        "statusListCredential": "https://example.com/credentials/status/3"
+    }
+
+    verifier = BitstringStatusListVerifier(credential_status)
+    verifier.verify_jwt(encoded_jwt, verifier=es256_embedding_verifier)
+
+    for i in range(status.status_list.size):
+        assert verifier.get_status(i) == {
+            "status": status[i],
+            "valid": not bool(status[i])
         }
