@@ -125,8 +125,16 @@ class BitstringStatusListVerifier():
                 statusPurpose in status list is {credential_subject["statusPurpose"]}"
             )
         
-        # Cache returned status list as BitArray
+        # If statusPurpose = message, ensure that a statusMessage list exists in the credential
         bits = self.credential_status.get("statusSize")
+        if bits is not None and bits > 1 and self.credential_status.get("statusMessage") is None:
+            raise StatusVerificationError("For statusSize > 1, a message must exist.")
+        
+        if self.credential_status["statusPurpose"] == "message" and self.credential_status.get("statusMessage") is None:
+            raise StatusVerificationError("If statusPurpose is `message`, a statusMessage field must \
+                                          be included which provides the message associated with each bit.")
+        
+        # Cache returned status list as BitArray
         self._bit_array = BitArray.from_b64(1 if bits is None else bits, credential_subject["encodedList"])
         if self._bit_array.size < min_list_length:
             raise StatusListLengthError(f"Bitstring status list must be at least {min_list_length} \
@@ -147,16 +155,18 @@ class BitstringStatusListVerifier():
         # If purpose == message, extract the relevant message and add it to the return_dict, as 
         # described in S. 3.2 Part 14.
         purpose = self.credential_status.get("statusPurpose")
-        if purpose is not None and purpose == "message":
-            try:
-                for message in self.credential_status["statusMessage"]:
-                    if int(message["status"], 16) == status:
-                        return_dict["message"] = message["message"]
-                        break
-
-                raise StatusVerificationError(f"Status not found in message list: {self.credential_status["statusMessage"]}")
-            except KeyError as k: 
-                raise StatusVerificationError(f"statusMessage is malformed or not present: {k}")
-
-        return return_dict
+        if purpose is None or purpose != "message":
+            return return_dict
+        
+        # if purpose == "message"
+        try:
+            for message in self.credential_status["statusMessage"]:
+                if int(message["status"], 16) == status:
+                    return_dict["message"] = message["message"]
+                    return return_dict
+        
+        except KeyError as k: 
+            raise StatusVerificationError(f"statusMessage is malformed or not present: {k}")
+        
+        raise StatusVerificationError(f"Status {status} not found in message list: {self.credential_status["statusMessage"]}")
     

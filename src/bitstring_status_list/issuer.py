@@ -102,7 +102,14 @@ class BitstringStatusListIssuer(Issuer):
         validUntil: Optional[str] = None,
         ttl: Optional[int] = None,
         issuer: Optional[str] = None,
+        status_messages: Optional[list] = None,
+        status_size: Optional[Bits] = None,
     ) -> Tuple[dict, dict]:
+        if status_purpose == "message":
+            assert status_size is not None
+            if status_size > 1:
+                assert status_messages is not None
+        
         headers = {
             "kid": kid,
             "alg": alg,
@@ -130,6 +137,8 @@ class BitstringStatusListIssuer(Issuer):
                 "statusPurpose": status_purpose,
                 "encodedList": self.status_list.to_b64(),
                 **({"ttl": ttl} if ttl else {}),
+                **({"statusMessages": status_messages} if status_messages else {}),
+                **({"statusSize": status_size} if status_size else {}),
             }
         }
 
@@ -147,6 +156,8 @@ class BitstringStatusListIssuer(Issuer):
         validUntil: Optional[str] = None,
         ttl: Optional[int] = None,
         issuer: Optional[str] = None,
+        status_messages: Optional[list] = None,
+        status_size: Optional[Bits] = None,
     ) -> bytes:
         headers, payload = self.generate_jwt(
             alg=alg,
@@ -158,6 +169,8 @@ class BitstringStatusListIssuer(Issuer):
             validUntil=validUntil,
             ttl=ttl,
             issuer=issuer,
+            status_messages=status_messages,
+            status_size=status_size,
         )
         
         enc_headers = dict_to_b64(headers)
@@ -177,6 +190,8 @@ class BitstringStatusListIssuer(Issuer):
         validUntil: Optional[str] = None,
         ttl: Optional[int] = None,
         issuer: Optional[str] = None,
+        status_messages: Optional[list] = None,
+        status_size: Optional[Bits] = None,
     ):
         headers, payload = self.generate_jwt(
             alg=None,
@@ -188,6 +203,8 @@ class BitstringStatusListIssuer(Issuer):
             validUntil=validUntil,
             ttl=ttl,
             issuer=issuer,
+            status_messages=status_messages,
+            status_size=status_size,
         )
 
         unsigned_payload_bytes = dict_to_b64(payload)
