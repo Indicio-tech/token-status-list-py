@@ -77,8 +77,11 @@ def test_verify_jwt_basic_enveloping(status: BitstringStatusListIssuer):
         "statusListCredential": "https://example.com/credentials/status/3"
     }
 
-    verifier = BitstringStatusListVerifier(credential_status)
-    verifier.verify_jwt(encoded_jwt, verifier=trivial_enveloping_verifier)
+    verifier = BitstringStatusListVerifier.from_jwt(
+        token=encoded_jwt,
+        credential_status=credential_status,
+        verifier=trivial_embedding_verifier,
+    )
 
     assert verifier.headers == {"alg": "ES256", "kid": "12"}
     assert verifier.payload == {
@@ -115,8 +118,11 @@ def test_verify_jwt_basic_embedding(status: BitstringStatusListIssuer):
         "statusListCredential": "https://example.com/credentials/status/3"
     }
 
-    verifier = BitstringStatusListVerifier(credential_status)
-    verifier.verify_jwt(encoded_jwt, verifier=trivial_embedding_verifier)
+    verifier = BitstringStatusListVerifier.from_jwt(
+        token=encoded_jwt,
+        credential_status=credential_status,
+        verifier=trivial_embedding_verifier,
+    )
 
     assert verifier.payload == {
         "@context": [
@@ -178,8 +184,11 @@ def test_status_message():
         "statusSize": 2,
     }
 
-    verifier = BitstringStatusListVerifier(credential_status)
-    verifier.verify_jwt(encoded_jwt, verifier=trivial_enveloping_verifier)
+    verifier = BitstringStatusListVerifier.from_jwt(
+        token=encoded_jwt,
+        credential_status=credential_status,
+        verifier=trivial_enveloping_verifier,
+    )
 
     for i in range(bitstring.status_list.size):
         assert verifier.get_status(i) == {
@@ -208,8 +217,11 @@ def test_verify_es256_enveloping(
         "statusListCredential": "https://example.com/credentials/status/3"
     }
 
-    verifier = BitstringStatusListVerifier(credential_status)
-    verifier.verify_jwt(encoded_jwt, verifier=es256_enveloping_verifier)
+    verifier = BitstringStatusListVerifier.from_jwt(
+        token=encoded_jwt,
+        credential_status=credential_status,
+        verifier=es256_enveloping_verifier,
+    ) 
 
     for i in range(status.status_list.size):
         assert verifier.get_status(i) == {
@@ -235,8 +247,11 @@ def test_verify_es256_embedding(
         "statusListCredential": "https://example.com/credentials/status/3"
     }
 
-    verifier = BitstringStatusListVerifier(credential_status)
-    verifier.verify_jwt(encoded_jwt, verifier=es256_embedding_verifier)
+    verifier = BitstringStatusListVerifier.from_jwt(
+        token=encoded_jwt,
+        credential_status=credential_status,
+        verifier=es256_embedding_verifier,
+    )
 
     for i in range(status.status_list.size):
         assert verifier.get_status(i) == {
