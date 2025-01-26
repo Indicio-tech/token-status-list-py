@@ -6,9 +6,9 @@ from time import time
 from google.auth.crypt.es256 import ES256Signer, ES256Verifier
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from bit_array import BitArray
-from token_status_list.issuer import TokenStatusListIssuer, ALG, KID, TYP, ISS, SUB, AUD, EXP, NBF, IAT, CTI, STATUS_LIST, TTL, KNOWN_ALGS_TO_CWT_ALG
-from token_status_list.verifier import TokenStatusListVerifier
+from src.bit_array import BitArray
+from src.token_status_list.issuer import TokenStatusListIssuer, ALG, KID, TYP, ISS, SUB, EXP, IAT, STATUS_LIST, KNOWN_ALGS_TO_CWT_ALG
+from src.token_status_list.verifier import TokenStatusListVerifier
 
 @pytest.fixture
 def status():
