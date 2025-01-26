@@ -6,7 +6,7 @@ from typing import (
 from aiohttp import ClientSession
 import json
 
-from src.bit_array import BitArray, b64url_decode, b64url_encode, dict_to_b64
+from src.bit_array import BitArray, b64url_decode, dict_to_b64
 from src.bitstring_status_list.issuer import MIN_LIST_LENGTH, StatusListLengthError
 
 class EnvelopingTokenVerifier(Protocol):
@@ -72,6 +72,7 @@ class BitstringStatusListVerifier():
             headers: OPTIONAL. Additional headers for the HTTP request.
 
             min_list_length: OPTIONAL. The minimum list length, recommended to be 131,072 (see S. 6.1)
+        
         Returns:
             An instance of BitstringStatusListVerifier which has been verified for correctness and 
             integrity.
@@ -114,6 +115,10 @@ class BitstringStatusListVerifier():
             the proof format of the token (embedded or enveloping)
 
             min_list_length: OPTIONAL. The minimum list length, recommended to be 131,072 (see S. 6.1)
+        
+        Returns:
+            An instance of BitstringStatusListVerifier which has been verified for correctness and 
+            integrity.
         """
         # Check that message is in valid JWT format 
         if isinstance(token, str):
@@ -179,6 +184,18 @@ class BitstringStatusListVerifier():
         )
         
     def get_status(self, idx: Optional[int] = None):
+        """
+        Returns the status of an object from the status_list in payload.
+
+        Args:
+            index: OPTIONAL. The index of the token's status in the list, along with relevant metadata
+            as specified in S. 3.2. If none is provided, the index used will be the index found in 
+            self.credential_status.
+        
+        Returns:
+            The status of the requested token along with relevant metadata.
+        """
+
         if idx is None:
             idx = int(self.credential_status["statusListIndex"])
 
@@ -225,16 +242,18 @@ class BitstringStatusListVerifier():
     @classmethod
     def deserialize_verifier(cls, seralized_verifier: dict) -> "BitstringStatusListVerifier":
         """
-        Utility function: deserializes a seralized TokenStatusListVerifier, which must be in the
-        same format as the return type of seralize_verifier. Returns a TokenStatusListVerifier type
+        Utility function: deserializes a seralized BitstringStatusListVerifier, which must be in the
+        same format as the return type of seralize_verifier. Returns a BitstringStatusListVerifier type
         with fields populated and the status list stored as a BitArray.
+        
+        This function DOES NOT check for correctness or integrity.
 
         Args:
             serialized_verifier: REQUIRED. Serialized verifier type which must be in the same format 
-            as TokenStatusListVerifier.serialize_verifier.
+            as BitstringStatusListVerifier.serialize_verifier.
 
         Returns:
-            A TokenStatusListVerifier instance with relevant fields populated.
+            A BitstringStatusListVerifier instance with relevant fields populated.
         """
 
         bits = seralized_verifier["credential_status"].get("statusSize")
