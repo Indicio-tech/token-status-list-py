@@ -56,8 +56,11 @@ def test_verify_jwt_basic(status: TokenStatusListIssuer):
     )
 
     # Check that token is correctly verified
-    verifier = TokenStatusListVerifier()
-    verifier.jwt_verify(payload.encode(), trivial_verifier)
+    verifier = TokenStatusListVerifier.from_jwt(
+        payload.encode(),
+        "https://example.com/statuslists/1",
+        trivial_verifier,
+    )
 
     # Check that headers and payload are as expected
     assert verifier.encoding == "JWT"
@@ -85,9 +88,12 @@ def test_verify_jwt_expired(status: TokenStatusListIssuer):
         exp=20,
     )
 
-    verifier = TokenStatusListVerifier()
     try:
-        verifier.jwt_verify(payload.encode(), trivial_verifier)
+        _ = TokenStatusListVerifier.from_jwt(
+            payload.encode(),
+            "https://example.com/statuslists/1",
+            trivial_verifier,
+        )
         raise ValueError("Token should be expired.")
     except ValueError:
         return
@@ -104,8 +110,11 @@ def test_verify_jwt_es256(status: TokenStatusListIssuer, es256_signer, es256_ver
     )
 
     # Check that token is correctly verified using ES256
-    verifier = TokenStatusListVerifier()
-    verifier.jwt_verify(payload.encode(), es256_verifier)
+    verifier = TokenStatusListVerifier.from_jwt(
+        payload.encode(),
+        "https://example.com/statuslists/1",
+        es256_verifier,
+    )
 
     # Check that values match
     for i in range(status.status_list.size):
@@ -129,8 +138,11 @@ def test_verify_cwt_basic(status: TokenStatusListIssuer):
         exp=exp,
     )
 
-    verifier = TokenStatusListVerifier()
-    verifier.cwt_verify(token, trivial_verifier)
+    verifier = TokenStatusListVerifier.from_cwt(
+        token,
+        "https://example.com/statuslists/1",
+        trivial_verifier,
+    )
 
     # Check that headers and payload are as expected
     assert verifier.encoding == "CWT"
@@ -159,9 +171,12 @@ def test_verify_cwt_expired(status: TokenStatusListIssuer):
         exp=20,
     )
 
-    verifier = TokenStatusListVerifier()
     try:
-        verifier.cwt_verify(token, trivial_verifier)
+        _ = TokenStatusListVerifier.from_jwt(
+            token,
+            "https://example.com/statuslists/1",
+            trivial_verifier,
+        )
         raise ValueError("Token should be expired.")
     except ValueError:
         return
@@ -178,9 +193,40 @@ def test_verify_cwt_es256(status: TokenStatusListIssuer, es256_signer, es256_ver
     )
 
     # Check that token is correctly verified using ES256
-    verifier = TokenStatusListVerifier()
-    verifier.cwt_verify(token, es256_verifier)
+    verifier = TokenStatusListVerifier.from_cwt(
+        token,
+        "https://example.com/statuslists/1",
+        es256_verifier,
+    )
 
     # Check that values match
     for i in range(status.status_list.size):
         assert status[i] == verifier.get_status(i)
+
+def test_serialization(status: TokenStatusListIssuer):
+    payload = status.sign_jwt(
+        signer=trivial_signer,
+        alg="ES256",
+        kid="12",
+        iss="https://example.com",
+        sub="https://example.com/statuslists/1",
+    )
+
+    verifier = TokenStatusListVerifier.from_jwt(
+        payload,
+        "https://example.com/statuslists/1",
+        trivial_verifier
+    )
+
+    serialized_verifier = verifier.serialize_verifier()
+    unserialized_verifier = TokenStatusListVerifier.deserialize_verifier(serialized_verifier)
+
+    assert verifier.encoding == unserialized_verifier.encoding
+    assert verifier.status_list_uri == unserialized_verifier.status_list_uri
+
+    assert verifier.headers == unserialized_verifier.headers
+    assert verifier.payload == unserialized_verifier.payload
+
+    # Check that values match
+    for i in range(status.status_list.size):
+        assert status[i] == verifier.get_status(i) == unserialized_verifier.get_status(i)

@@ -1,6 +1,8 @@
-from subprocess import call
-
 import pytest
+import asyncio
+
+pytest_plugins = ('pytest_asyncio',)
+
 from google.auth.crypt.es256 import ES256Verifier
 from cryptography.hazmat.primitives.asymmetric import ec
 import requests as r
@@ -29,13 +31,14 @@ def es256_verifier():
 EXPECTED_IAT = 1734650332
 EXPECTED_EXP = 1744650332 
 
-def test_jwt_verify(status, es256_verifier):
-    verifier = TokenStatusListVerifier()
-    response = verifier.establish_connection("JWT", ISSUER + "/jwt_example")
+@pytest.mark.asyncio
+async def test_jwt_verify(status, es256_verifier):
+    verifier = await TokenStatusListVerifier.retrieve_list(
+        encoding="JWT",
+        status_list_uri=ISSUER + "/jwt_example",
+        verifier=es256_verifier
+    )
     
-    # Check that token is correctly verified
-    verifier.jwt_verify(response, es256_verifier)
-
     # Check that headers and payload are as expected
     assert verifier.encoding == "JWT"
     assert verifier.headers == {"alg": "ES256", "kid": "12", "typ": "statuslist+jwt"}
@@ -51,17 +54,18 @@ def test_jwt_verify(status, es256_verifier):
     for i in range(len(status)):
         assert status[i] == verifier.get_status(i)
 
-
-def test_cwt_verify(status, es256_verifier):
+@pytest.mark.asyncio
+async def test_cwt_verify(status, es256_verifier):
     try:
         import cbor2
     except ImportError as err:
         raise ImportError("cbor extra required to use this function") from err
     
-    verifier = TokenStatusListVerifier()
-    response = verifier.establish_connection("CWT", ISSUER + "/cwt_example")
-
-    verifier.cwt_verify(response, es256_verifier)
+    verifier = await TokenStatusListVerifier.retrieve_list(
+        encoding="CWT",
+        status_list_uri=ISSUER + "/cwt_example",
+        verifier=es256_verifier,
+    )
 
     # Check that headers and payload are as expected
     assert verifier.encoding == "CWT"
