@@ -113,8 +113,8 @@ class TokenStatusListVerifier():
             signer in sign_jwt() in issuer.py.
         
         Returns:
-            An instance of TokenStatusListVerifier with the relevant fields (headers, payload) 
-            filled out.
+            An instance of TokenStatusListVerifier which has been verified for correctness and 
+            integrity.
         """
         
         # Check that message is in valid JWT format 
@@ -190,7 +190,7 @@ class TokenStatusListVerifier():
 
         Returns:
             An instance of TokenStatusListVerifier with the relevant fields (headers, payload) 
-            filled out.
+            populated.
         """
         
         try:
@@ -253,9 +253,7 @@ class TokenStatusListVerifier():
 
     def get_status(self, idx: int) -> int:
         """
-        Returns the status of an object from the status_list in payload. 
-        Requies that the payload has already been checked using jwt_verify or cwt_verify.
-        Caches the status list as a BitArray for ease of future reference.
+        Returns the status of an object from the status_list in payload.
 
         Args:
             index: REQUIRED. The index of the token's status in the list.
@@ -297,6 +295,8 @@ class TokenStatusListVerifier():
         Utility function: deserializes a seralized TokenStatusListVerifier, which must be in the
         same format as the return type of seralize_verifier. Returns a TokenStatusListVerifier type
         with fields populated and the status list stored as a BitArray.
+
+        This function DOES NOT check for correctness or integrity.
 
         Args:
             serialized_verifier: REQUIRED. Serialized verifier type which must be in the same format 
