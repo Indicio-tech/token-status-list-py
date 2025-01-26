@@ -56,8 +56,22 @@ class TokenStatusListVerifier():
         headers: dict | None = None,
     ) -> "TokenStatusListVerifier":
         """ 
-        Establish connection. Parse and verify response, and create instance of 
-        TokenStatusListVerifier to access it. 
+        Establish connection, parse and verify response, and create instance of 
+        TokenStatusListVerifier to access it.
+
+        Args:
+            status_list_uri: REQUIRED. The uri where the status list can be accessed via HTTP request.
+
+            verifier: REQUIRED. A callable that verifies the signature of a payload, equivalent to 
+            signer in sign_jwt() in issuer.py.
+
+            encoding: OPTIONAL. Either JWT or CWT. Default is JWT.
+
+            headers: OPTIONAL. Additional headers for the HTTP request that is sent to status_list_uri.
+
+        Returns:
+            An instance of TokenStatusListVerifier which has been verified for correctness and 
+            integrity.
         """
 
         headers = headers or {}
