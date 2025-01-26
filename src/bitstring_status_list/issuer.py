@@ -1,11 +1,13 @@
-from issuer import *
-from bit_array import *
+from src.issuer import Issuer
+from src.bit_array import BitArray, IndexAllocator, N, LinearIndexAllocator, RandomIndexAllocator, Bits, dict_to_b64
 
 from typing import (
     List,
     Literal,
     Optional,
     Tuple,
+    Protocol,
+    Union,
 )
 
 MIN_LIST_LENGTH = 131072

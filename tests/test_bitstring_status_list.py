@@ -3,9 +3,9 @@ import pytest
 from google.auth.crypt.es256 import ES256Signer, ES256Verifier
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from bit_array import b64url_encode, b64url_decode
-from bitstring_status_list.issuer import BitstringStatusListIssuer, EmbeddingTokenSigner, EnvelopingTokenSigner, MIN_LIST_LENGTH
-from bitstring_status_list.verifier import BitstringStatusListVerifier, EmbeddingTokenVerifier, EnvelopingTokenVerifier
+from src.bit_array import b64url_encode, b64url_decode
+from src.bitstring_status_list.issuer import BitstringStatusListIssuer, EmbeddingTokenSigner, EnvelopingTokenSigner, MIN_LIST_LENGTH
+from src.bitstring_status_list.verifier import BitstringStatusListVerifier, EmbeddingTokenVerifier, EnvelopingTokenVerifier
 
 @pytest.fixture
 def status():
@@ -258,3 +258,37 @@ def test_verify_es256_embedding(
             "status": status[i],
             "valid": not bool(status[i])
         }
+
+def test_serialization(status: BitstringStatusListIssuer):
+    encoded_jwt = status.sign_jwt_enveloping(
+        signer=trivial_enveloping_signer,
+        alg="ES256",
+        kid="12",
+        status_purpose="revocation",
+    )
+
+    credential_status = {
+        "id": "https://example.com/credentials/status/3#94567",
+        "type": "BitstringStatusListEntry",
+        "statusPurpose": "revocation",
+        "statusListIndex": "0",
+        "statusListCredential": "https://example.com/credentials/status/3"
+    }
+
+    verifier = BitstringStatusListVerifier.from_jwt(
+        token=encoded_jwt,
+        credential_status=credential_status,
+        verifier=trivial_embedding_verifier,
+    )
+
+    serialized_verifier = verifier.serialize_verifier()
+    unserialized_verifier = BitstringStatusListVerifier.deserialize_verifier(serialized_verifier)
+
+    assert verifier.credential_status == unserialized_verifier.credential_status
+
+    assert verifier.headers == unserialized_verifier.headers
+    assert verifier.payload == unserialized_verifier.payload
+
+    # Check that values match
+    for i in range(status.status_list.size):
+        assert verifier.get_status(i) == unserialized_verifier.get_status(i)

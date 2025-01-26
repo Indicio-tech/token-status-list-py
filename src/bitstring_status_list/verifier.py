@@ -1,5 +1,4 @@
 from typing import (
-    Literal,
     Optional,
     Protocol,
 )
@@ -7,8 +6,8 @@ from typing import (
 from aiohttp import ClientSession
 import json
 
-from bit_array import BitArray, b64url_decode, b64url_encode, dict_to_b64
-from bitstring_status_list.issuer import MIN_LIST_LENGTH, StatusListLengthError
+from src.bit_array import BitArray, b64url_decode, b64url_encode, dict_to_b64
+from src.bitstring_status_list.issuer import MIN_LIST_LENGTH, StatusListLengthError
 
 class EnvelopingTokenVerifier(Protocol):
     """Protocol defining the verifying callable for enveloping signatures."""
@@ -207,4 +206,45 @@ class BitstringStatusListVerifier():
             raise StatusVerificationError(f"statusMessage is malformed or not present: {k}")
         
         raise StatusVerificationError(f"Status {status} not found in message list: {self.credential_status["statusMessage"]}")
+
+    def serialize_verifier(self) -> dict:
+        """
+        Utility function: serialize a BitstringStatusListVerifier for storing.
+
+        Returns:
+            A dictionary with headers and payload, as well as relevant metadata.
+        """
+
+        return {
+            "credential_status": self.credential_status,
+            **({"headers": self.headers} if self.headers else {}),
+            "payload": self.payload,
+        }
+    
+
+    @classmethod
+    def deserialize_verifier(cls, seralized_verifier: dict) -> "BitstringStatusListVerifier":
+        """
+        Utility function: deserializes a seralized TokenStatusListVerifier, which must be in the
+        same format as the return type of seralize_verifier. Returns a TokenStatusListVerifier type
+        with fields populated and the status list stored as a BitArray.
+
+        Args:
+            serialized_verifier: REQUIRED. Serialized verifier type which must be in the same format 
+            as TokenStatusListVerifier.serialize_verifier.
+
+        Returns:
+            A TokenStatusListVerifier instance with relevant fields populated.
+        """
+
+        bits = seralized_verifier["credential_status"].get("statusSize")
+        return cls(
+            credential_status=seralized_verifier["credential_status"],
+            headers=seralized_verifier.get("headers"),
+            payload=seralized_verifier["payload"],
+            bit_array=BitArray.from_b64(
+                bits=1 if bits is None else bits,
+                value=seralized_verifier["payload"]["credentialSubject"]["encodedList"]
+            )
+        )
     
