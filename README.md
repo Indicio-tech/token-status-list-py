@@ -1,6 +1,6 @@
 # token-status-list
 
-This is an implementation of [Token Status List Draft 6][spec] and [Bitstring Status List][https://www.w3.org/TR/vc-bitstring-status-list/].
+This is an implementation of [Token Status List Draft 6][spec] and [Bitstring Status List](https://www.w3.org/TR/vc-bitstring-status-list/).
 
 [spec]: https://datatracker.ietf.org/doc/html/draft-ietf-oauth-status-list-06
 
