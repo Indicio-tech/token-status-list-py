@@ -4,7 +4,7 @@ import pytest
 from secrets import randbelow
 
 from tests import Timer
-from token_status_list import SUSPENDED, BitArray, VALID, b64url_decode
+from bit_array import SUSPENDED, BitArray, VALID, b64url_decode
 
 
 def test_get_1_bits():
