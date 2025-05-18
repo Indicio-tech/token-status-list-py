@@ -80,6 +80,11 @@ class BitstringStatusListVerifier():
 
         headers = headers or {}
 
+        if not all(key in credential_status.keys() for key in ["id", "type", "statusPurpose", "statusListIndex", "statusListCredential"]):
+            raise StatusVerificationError(f"Invalid credential_status: {credential_status}. \
+                                            credential status is expected to have keys: \
+                                            [id, type, statusPurpose, statusListIndex, statusListCredential]")
+
         async with ClientSession() as session:
             async with session.get(credential_status["statusListCredential"], headers=headers) as resp:
                 if not 200 <= resp.status < 300:
@@ -220,7 +225,7 @@ class BitstringStatusListVerifier():
                     return return_dict
         
         except KeyError as k: 
-            raise StatusVerificationError(f"statusMessage is malformed or not present: {k}")
+            raise StatusVerificationError("statusMessage is malformed or not present") from k
         
         raise StatusVerificationError(f"Status {status} not found in message list: {self.credential_status["statusMessage"]}")
 
